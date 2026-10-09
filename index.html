@@ -116,6 +116,10 @@ footer{color:var(--dim);font-size:12px;margin-top:48px;line-height:1.7}
 <div class="row"><select id="nightSel"></select><span class="hint" id="nightInfo" style="margin:0"></span></div>
 <div class="card"><div class="chart" style="height:320px"><canvas id="nightChart" role="img" aria-label="תוצאות הערב שנבחר"></canvas></div></div>
 
+<h2>כל הערבים</h2>
+<p class="hint">לחיצה על שורה פותחת את הערב בגרף למעלה.</p>
+<div class="card scroll"><table id="events"></table></div>
+
 <h2>ראש בראש</h2>
 <p class="hint">רק ערבים ששניהם שיחקו. מי סיים טוב יותר באותו ערב.</p>
 <div class="row"><select id="p1"></select><span class="hint" style="margin:0">נגד</span><select id="p2"></select></div>
@@ -138,6 +142,8 @@ const plain=v=>(Math.round(v*10)/10).toLocaleString('en-US');
 const cls=v=>v>0?'pos':v<0?'neg':'zero';
 const dmy=s=>{const[y,m,d]=s.split('-');return `${+d}.${+m}`};
 const el=id=>document.getElementById(id);
+const esc=t=>String(t||'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const nn=n=>n.name?n.name:'ערב '+dmy(n.date);
 
 fetch('data.json?v='+Date.now()).then(r=>r.json()).then(D=>{
 const N=D.nights; const last=N[N.length-1];
@@ -167,14 +173,14 @@ const color={};regs.forEach((p,i)=>color[p]=PAL[i%PAL.length]);players.filter(p=
 el('sub').textContent=`${N.length} ערבים · ${players.length} שחקנים · עדכון אחרון ${dmy(last.date)}`;
 
 // KPIs
-const allRes=N.flatMap(n=>Object.entries(n.res).map(([p,v])=>({p,v,date:n.date})));
+const allRes=N.flatMap(n=>Object.entries(n.res).map(([p,v])=>({p,v,date:n.date,ev:n.name})));
 const bigW=allRes.reduce((a,b)=>b.v>a.v?b:a);
 const totalBuy=Object.values(D.buys).reduce((a,b)=>a+b,0);
 const leader=stats[rNow[0]];
 const avgPlayers=(allRes.length/N.length).toFixed(1);
 el('kpis').innerHTML=[
  ['מוביל העונה',leader.p,`<span class="num pos">${fmt(leader.tot)}</span>`],
- ['ערב השיא',`<span class="num">${fmt(bigW.v)}</span>`,`${bigW.p} · ${dmy(bigW.date)}`],
+ ['ערב השיא',`<span class="num">${fmt(bigW.v)}</span>`,`${bigW.p} · ${dmy(bigW.date)}${bigW.ev?' · '+esc(bigW.ev):''}`],
  ['כסף שנכנס לשולחן',`<span class="num">${totalBuy.toLocaleString('en-US')}</span>`,`${N.length} ערבים`],
  ['שחקנים בערב',`<span class="num">${avgPlayers}</span>`,'בממוצע'],
 ].map(([l,v,s])=>`<div class="kpi"><div class="l">${l}</div><div class="v">${v}</div><div class="s">${s}</div></div>`).join('');
@@ -199,7 +205,7 @@ const aws=[
  ['📉','הנפילה',fall.p,`השיא שלו היה <span class="num">${fmt(fall.peak)}</span> (${dmy(fall.peakAt)}). מאז ירד ${plain(fall.drop)}.`],
  ['⚡','רצף פעיל',streak.p,`${streak.cur} ניצחונות ברצף, ועדיין רץ.`],
  ['🎯','הכי יעיל',sniper.p,`ROI של ${Math.round(sniper.roi)}% – על כל 100 שהכניס, יצא עם ${Math.round(100+sniper.roi)}.`],
- ['💥','ערב השיא',bigW.p,`<span class="num pos">${fmt(bigW.v)}</span> בערב אחד (${dmy(bigW.date)}).`],
+ ['💥','ערב השיא',bigW.p,`<span class="num pos">${fmt(bigW.v)}</span> בערב אחד (${dmy(bigW.date)}${bigW.ev?' – '+esc(bigW.ev):''}).`],
 ];
 el('awards').innerHTML=aws.map(([ic,t,n,d])=>`<div class="aw"><div class="ic">${ic}</div><div class="t">${t}</div><div class="n">${n}</div><div class="d">${d}</div></div>`).join('');
 
@@ -227,7 +233,7 @@ const shown=new Set(regs.slice(0,8));
 const ds=players.map(p=>{let c=0;const data=[0,...N.map(n=>{if(n.res[p]!==undefined)c+=n.res[p];return Math.round(c*10)/10})];
   return {label:p,data,borderColor:color[p],backgroundColor:color[p],borderWidth:2.2,pointRadius:0,pointHoverRadius:4,tension:.25,hidden:!shown.has(p)}});
 const cum=new Chart(el('cum'),{type:'line',data:{labels,datasets:ds},options:{responsive:true,maintainAspectRatio:false,interaction:{mode:'index',intersect:false},
-  plugins:{legend:{display:false},tooltip:{rtl:true,itemSort:(a,b)=>b.parsed.y-a.parsed.y,filter:i=>!i.dataset.hidden,callbacks:{label:c=>` ${c.dataset.label}: ${fmt(c.parsed.y)}`}}},
+  plugins:{legend:{display:false},tooltip:{rtl:true,callbacks:{title:c=>{const i=c[0].dataIndex;return i?dmy(N[i-1].date)+(N[i-1].name?' · '+N[i-1].name:''):'התחלה'},label:c=>` ${c.dataset.label}: ${fmt(c.parsed.y)}`},itemSort:(a,b)=>b.parsed.y-a.parsed.y,filter:i=>!i.dataset.hidden}},
   scales:{x:{grid:{display:false},ticks:{maxRotation:0,autoSkipPadding:12}},y:{grid:{color:'#1f242c'},ticks:{callback:v=>'\u200E'+v.toLocaleString('en-US')}}}}});
 el('chips').innerHTML=[...regs,...players.filter(p=>!regs.includes(p))].map(p=>`<button class="chip ${shown.has(p)?'on':''}" data-p="${p}"><span class="dot" style="background:${color[p]}"></span>${p}</button>`).join('');
 el('chips').querySelectorAll('.chip').forEach(b=>b.onclick=()=>{const d=cum.data.datasets.find(x=>x.label===b.dataset.p);d.hidden=!d.hidden;b.classList.toggle('on',!d.hidden);cum.update()});
@@ -235,7 +241,7 @@ el('chips').querySelectorAll('.chip').forEach(b=>b.onclick=()=>{const d=cum.data
 // Heatmap (newest left in RTL = last column)
 const heatPlayers=[...players].sort((a,b)=>stats[b].n-stats[a].n||stats[b].tot-stats[a].tot);
 const hc=v=>{if(v===undefined)return 'background:#191c22';const a=Math.min(1,.18+Math.abs(v)/320);return v>=0?`background:rgba(60,207,122,${a})`:`background:rgba(255,84,102,${a})`};
-el('heat').innerHTML='<tr><th></th>'+[...N].reverse().map(n=>`<th>${dmy(n.date)}</th>`).join('')+'</tr>'+heatPlayers.map(p=>'<tr><td class="nm">'+p+'</td>'+[...N].reverse().map(n=>{const v=n.res[p];return `<td class="c" style="${hc(v)}" title="${p} ${dmy(n.date)}: ${v===undefined?'לא שיחק':fmt(v)}">${v===undefined?'':Math.round(v)}</td>`}).join('')+'</tr>').join('');
+el('heat').innerHTML='<tr><th></th>'+[...N].reverse().map(n=>`<th title="${esc(nn(n))}">${dmy(n.date)}</th>`).join('')+'</tr>'+heatPlayers.map(p=>'<tr><td class="nm">'+p+'</td>'+[...N].reverse().map(n=>{const v=n.res[p];return `<td class="c" style="${hc(v)}" title="${p} · ${esc(nn(n))}: ${v===undefined?'לא שיחק':fmt(v)}">${v===undefined?'':Math.round(v)}</td>`}).join('')+'</tr>').join('');
 
 // Bars helper (diverging or 0..1)
 function bars(id,items,max,diverge,fmtv){
@@ -245,7 +251,7 @@ bars('winrate',R.map(s=>[s.p,s.wr]).sort((a,b)=>b[1]-a[1]),1,false,v=>Math.round
 const f5=R.map(s=>[s.p,s.f5]).sort((a,b)=>b[1]-a[1]);bars('formbars',f5,Math.max(...f5.map(x=>Math.abs(x[1]))),true,fmt);
 
 // Night explorer
-el('nightSel').innerHTML=N.map((n,i)=>`<option value="${i}">${dmy(n.date)}.${n.date.slice(0,4)}</option>`).reverse().join('');
+el('nightSel').innerHTML=N.map((n,i)=>`<option value="${i}">${dmy(n.date)} · ${esc(nn(n))}</option>`).reverse().join('');
 let nc;
 function drawNight(){const n=N[+el('nightSel').value];const e=Object.entries(n.res).sort((a,b)=>b[1]-a[1]);
   const sum=e.reduce((a,b)=>a+b[1],0);el('nightInfo').textContent=`${e.length} שחקנים · מנצח: ${e[0][0]} ${fmt(e[0][1])}`;
@@ -255,6 +261,11 @@ function drawNight(){const n=N[+el('nightSel').value];const e=Object.entries(n.r
   scales:{x:{grid:{color:'#1f242c'},ticks:{callback:v=>'\u200E'+v}},y:{grid:{display:false},position:'right',ticks:{color:'#e6e7ee'}}}}})}
 el('nightSel').onchange=drawNight;drawNight();
 
+
+// Events list
+el('events').innerHTML='<thead><tr><th>תאריך</th><th>שם הערב</th><th>מנצח</th><th>רווח</th><th>שחקנים</th></tr></thead><tbody>'+[...N].map((n,i)=>[n,i]).reverse().map(([n,i])=>{const w=Object.entries(n.res).sort((a,b)=>b[1]-a[1])[0];
+ return `<tr data-i="${i}" style="cursor:pointer"><td class="zero">${dmy(n.date)}</td><td style="white-space:normal;min-width:160px">${n.name?esc(n.name):'<span class="zero">–</span>'}</td><td class="name"><span style="color:${color[w[0]]}">●</span> ${w[0]}</td><td class="num pos">${fmt(w[1])}</td><td class="num zero">${Object.keys(n.res).length}</td></tr>`}).join('')+'</tbody>';
+el('events').querySelectorAll('tr[data-i]').forEach(tr=>tr.onclick=()=>{el('nightSel').value=tr.dataset.i;drawNight();el('nightSel').scrollIntoView({behavior:'smooth',block:'center'})});
 // Head to head
 const opts=[...players].sort((a,b)=>stats[b].n-stats[a].n).map(p=>`<option>${p}</option>`).join('');
 el('p1').innerHTML=opts;el('p2').innerHTML=opts;el('p1').value=regs[0];el('p2').value=regs[1];
@@ -278,15 +289,15 @@ const rec=[
 const longW=R.reduce((a,b)=>b.bestW>a.bestW?b:a),longL=R.reduce((a,b)=>b.bestL>a.bestL?b:a);
 const most=Object.values(stats).reduce((a,b)=>b.n>a.n?b:a);
 const bigNight=N.reduce((a,b)=>Object.keys(b.res).length>Object.keys(a.res).length?b:a);
-el('records').innerHTML='<tbody>'+rec.map(([t,r])=>`<tr><td class="zero">${t}</td><td class="name">${r.p}</td><td class="num ${cls(r.v)}">${fmt(r.v)}</td><td class="zero">${dmy(r.date)}</td></tr>`).join('')+
+el('records').innerHTML='<tbody>'+rec.map(([t,r])=>`<tr><td class="zero">${t}</td><td class="name">${r.p}</td><td class="num ${cls(r.v)}">${fmt(r.v)}</td><td class="zero">${dmy(r.date)}${r.ev?' · '+esc(r.ev):''}</td></tr>`).join('')+
  `<tr><td class="zero">רצף ניצחונות הכי ארוך</td><td class="name">${longW.p}</td><td>${longW.bestW} ברצף</td><td></td></tr>`+
  `<tr><td class="zero">רצף הפסדים הכי ארוך</td><td class="name">${longL.p}</td><td>${longL.bestL} ברצף</td><td></td></tr>`+
  `<tr><td class="zero">הכי הרבה ערבים</td><td class="name">${most.p}</td><td>${most.n} מתוך ${N.length}</td><td></td></tr>`+
- `<tr><td class="zero">הערב הכי עמוס</td><td class="name">${Object.keys(bigNight.res).length} שחקנים</td><td></td><td class="zero">${dmy(bigNight.date)}</td></tr></tbody>`;
+ `<tr><td class="zero">הערב הכי עמוס</td><td class="name">${Object.keys(bigNight.res).length} שחקנים</td><td></td><td class="zero">${dmy(bigNight.date)}${bigNight.name?' · '+esc(bigNight.name):''}</td></tr></tbody>`;
 
 // Zero-sum check
-el('check').innerHTML='<thead><tr><th>ערב</th><th>שחקנים</th><th>סכום</th><th></th></tr></thead><tbody>'+[...N].reverse().map(n=>{const s=Object.values(n.res).reduce((a,b)=>a+b,0);const bad=Math.abs(s)>=10;
- return `<tr class="${bad?'flag':''}"><td>${dmy(n.date)}</td><td class="num">${Object.keys(n.res).length}</td><td class="num ${Math.abs(s)<3?'zero':'neg'}">${fmt(s)}</td><td>${bad?'⚠️ לבדוק':Math.abs(s)<3?'✓':'פער קטן'}</td></tr>`}).join('')+'</tbody>';
+el('check').innerHTML='<thead><tr><th>ערב</th><th>שם</th><th>שחקנים</th><th>סכום</th><th></th></tr></thead><tbody>'+[...N].reverse().map(n=>{const s=Object.values(n.res).reduce((a,b)=>a+b,0);const bad=Math.abs(s)>=10;
+ return `<tr class="${bad?'flag':''}"><td>${dmy(n.date)}</td><td class="zero">${esc(n.name)}</td><td class="num">${Object.keys(n.res).length}</td><td class="num ${Math.abs(s)<3?'zero':'neg'}">${fmt(s)}</td><td>${bad?'⚠️ לבדוק':Math.abs(s)<3?'✓':'פער קטן'}</td></tr>`}).join('')+'</tbody>';
 });
 </script>
 </body>
