@@ -91,8 +91,8 @@ footer{color:var(--dim);font-size:12px;margin-top:48px;line-height:1.7}
 <h2>טבלת העונה</h2>
 <p class="hint">לחיצה על כותרת ממיינת. החץ = שינוי מקום מהערב הקודם. ROI = כמה רווח על כל 100 שהוכנסו.</p>
 <div class="toggle" id="lbFilter">
-  <button class="chip on" data-min="5">קבועים (5+ ערבים)</button>
-  <button class="chip" data-min="1">כולם</button>
+  <button class="chip on" data-min="1">כולם</button>
+  <button class="chip" data-min="5">קבועים (5+ ערבים)</button>
 </div>
 <div class="card scroll"><table id="lb"></table></div>
 
@@ -205,7 +205,7 @@ el('awards').innerHTML=aws.map(([ic,t,n,d])=>`<div class="aw"><div class="ic">${
 
 // Leaderboard
 const cols=[['rank','#'],['move','±'],['p','שחקן'],['n','ערבים'],['tot','רווח'],['avg','ממוצע לערב'],['wr','% ניצחונות'],['roi','ROI'],['best','ערב הכי טוב'],['worst','ערב הכי גרוע'],['f5','5 אחרונים']];
-let sortKey='tot',sortDir=-1,minN=5;
+let sortKey='tot',sortDir=-1,minN=1;
 function drawLB(){
   const rows=players.filter(p=>stats[p].n>=minN).map(p=>stats[p]).sort((a,b)=>{const x=a[sortKey],y=b[sortKey];if(typeof x==='string')return sortDir*x.localeCompare(y);return sortDir*((x??-1e9)-(y??-1e9))});
   el('lb').innerHTML='<thead><tr>'+cols.map(([k,l])=>`<th data-k="${k}" class="${k===sortKey?'sorted':''}">${l}${k===sortKey?(sortDir<0?' ↓':' ↑'):''}</th>`).join('')+'</tr></thead><tbody>'+rows.map(s=>{
