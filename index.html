@@ -47,9 +47,11 @@ td.name{font-weight:500}
 .chip.on{color:var(--txt);border-color:#3a4150}
 .chip .dot{width:8px;height:8px;border-radius:50%}
 .chart{position:relative;height:380px}
-.heat{border-collapse:separate;border-spacing:2px;font-size:11px}
+.heat{border-collapse:separate;border-spacing:2px;font-size:11px;width:auto}
 .heat td,.heat th{padding:0;border:0;text-align:center}
-.heat th{font-size:10px;color:var(--dim);padding:0 0 4px;cursor:default;writing-mode:vertical-rl;transform:rotate(180deg);height:46px}
+.heat th{font-size:10.5px;color:var(--mut);padding:0 0 6px;cursor:default;writing-mode:vertical-rl;transform:rotate(180deg);height:190px;vertical-align:bottom;text-align:left;font-weight:400;line-height:1.15}
+.heat th b{display:block;color:var(--dim);font-weight:400;font-family:'JetBrains Mono',monospace;font-size:9.5px;direction:ltr;margin-bottom:6px}
+.heat th span{display:block;direction:ltr;max-height:150px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .heat td.c{direction:ltr;width:30px;height:24px;border-radius:4px;font-family:"JetBrains Mono",monospace;font-size:9.5px;color:rgba(255,255,255,.9)}
 .heat td.nm{text-align:right;padding-left:8px;font-size:12px;color:var(--txt);white-space:nowrap;position:sticky;right:0;background:var(--panel);z-index:1}
 select{background:var(--panel2);color:var(--txt);border:1px solid var(--line);border-radius:8px;padding:8px 10px;font:inherit;font-size:14px}
@@ -241,7 +243,7 @@ el('chips').querySelectorAll('.chip').forEach(b=>b.onclick=()=>{const d=cum.data
 // Heatmap (newest left in RTL = last column)
 const heatPlayers=[...players].sort((a,b)=>stats[b].n-stats[a].n||stats[b].tot-stats[a].tot);
 const hc=v=>{if(v===undefined)return 'background:#191c22';const a=Math.min(1,.18+Math.abs(v)/320);return v>=0?`background:rgba(60,207,122,${a})`:`background:rgba(255,84,102,${a})`};
-el('heat').innerHTML='<tr><th></th>'+[...N].reverse().map(n=>`<th title="${esc(nn(n))}">${dmy(n.date)}</th>`).join('')+'</tr>'+heatPlayers.map(p=>'<tr><td class="nm">'+p+'</td>'+[...N].reverse().map(n=>{const v=n.res[p];return `<td class="c" style="${hc(v)}" title="${p} · ${esc(nn(n))}: ${v===undefined?'לא שיחק':fmt(v)}">${v===undefined?'':Math.round(v)}</td>`}).join('')+'</tr>').join('');
+el('heat').innerHTML='<tr><th></th>'+[...N].reverse().map(n=>`<th title="${esc(nn(n))}"><span>${n.name?esc(n.name):'–'}</span><b>${dmy(n.date)}</b></th>`).join('')+'</tr>'+heatPlayers.map(p=>'<tr><td class="nm">'+p+'</td>'+[...N].reverse().map(n=>{const v=n.res[p];return `<td class="c" style="${hc(v)}" title="${p} · ${esc(nn(n))}: ${v===undefined?'לא שיחק':fmt(v)}">${v===undefined?'':Math.round(v)}</td>`}).join('')+'</tr>').join('');
 
 // Bars helper (diverging or 0..1)
 function bars(id,items,max,diverge,fmtv){
