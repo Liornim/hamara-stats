@@ -164,7 +164,7 @@ function boardNeeded(){return [0,3,4,5][Math.min(hd.street,3)]}
 // ---------- table ----------
 function drawTable(){
   const T=positions();
-  let h=`<div class="felt"><div class="potLbl">קופה</div><div class="potVal">${fmt(potTotal())}</div><div class="streetLbl">${STREET[hd.street]} · ${hd.active.length} ביד</div><div class="boardMini">${hd.board.filter(c=>c!==null).map(CARD.html).join('')}</div></div>`;
+  let h=`<div class="felt"><div class="potLbl">קופה</div><div class="potVal">${fmt(potTotal())}</div><div class="streetLbl">${STREET[hd.street]} · ${hd.quick?hd.left:hd.active.length} ביד</div><div class="boardMini">${hd.board.filter(c=>c!==null).map(CARD.html).join('')}</div></div>`;
   for(let i=0;i<cfg.n;i++){
     const a=(90+i*360/cfg.n)*Math.PI/180,x=50+44*Math.cos(a),y=50+47*Math.sin(a);
     const on=cfg.seats[i],p=hd.pos[i]||T.pos[i]||'';
@@ -257,7 +257,59 @@ function advice(){
 // ---------- action panel ----------
 let raiseAmt=null;
 function sizeChips(){return [100,200,300,400,500].filter(v=>v>hd.cur).map(v=>[String(v),v])}
+const oppsN=()=>Math.max(1,(hd.quick?hd.left:hd.active.length)-1);
+function jump(){
+  snapshot();
+  if(!hd.quick){hd.quick=true;hd.left=hd.raises.length||hd.street>0?Math.max(2,hd.active.length):Math.min(3,hd.active.length)}
+  hd.pot=potTotal();hd.com={};hd.cur=0;hd.actor=null;hd.over=null;
+  hd.street=Math.min(3,hd.street+1);
+  hd.log.push(`— קפיצה ל${STREET[hd.street]} · ${hd.left} ביד —`);
+  target=null;render();
+}
+function drawsTxt(hero,board){
+  if(board.length>=5)return '';const all=hero.concat(board),out=[];
+  const sc=[0,0,0,0];all.forEach(c=>sc[c&3]++);const fs=sc.findIndex(x=>x===4);
+  if(fs>=0&&hero.some(c=>(c&3)===fs))out.push('דרואו לצבע');
+  const rs=new Set(all.map(c=>c>>2));if(rs.has(12))rs.add(-1);const hr=new Set(hero.map(c=>c>>2));if(hr.has(12))hr.add(-1);
+  let oe=false,gs=false;
+  for(let lo=-1;lo<=8;lo++){const w=[0,1,2,3,4].map(k=>lo+k),have=w.filter(r=>rs.has(r));if(have.length===5)return out.length?' + '+out.join(', '):'';
+    if(have.length===4&&w.some(r=>hr.has(r))){const miss=w.find(r=>!rs.has(r));if(miss===lo||miss===lo+4)oe=true;else gs=true}}
+  if(oe)out.push('דרואו פתוח לרצף');else if(gs)out.push('דרואו לרצף (באמצע)');
+  return out.length?' + '+out.join(', '):'';
+}
+function drawQuick(){
+  const board=hd.board.filter(c=>c!==null),need=boardNeeded()-board.length,max=hd.N;
+  let adv='';
+  if(hd.hero.some(c=>c===null))adv=`<div class="need">בחר את שני הקלפים שלך ↓</div>`;
+  else if(need>0)adv=`<div class="need">הכנס את ${hd.street===1?'3 קלפי הפלופ':'קלף ה'+STREET[hd.street]} ↓</div>`;
+  else{
+    const opps=oppsN(),key=['q',...hd.hero,...board,opps].join(',');
+    if(eqCache.key!==key){eqCache={key,val:null};const tok=++eqTok;setTimeout(()=>{if(tok!==eqTok)return;eqCache.val=H.equity(hd.hero,board,opps,12000);render()},0);adv=`<div class="adv" style="border-color:#3a4150"><div class="w">מחשב סיכויים…</div></div>`}
+    else{
+      const eq=eqCache.val.eq,fair=1/(opps+1),pot=hd.pot;
+      const made=H.CAT[Math.floor(H.eval7(hd.hero.concat(board))/1e6)]+drawsTxt(hd.hero,board);
+      const maxCall=eq>=0.5?null:Math.min(pot,Math.floor(eq*pot/(1-2*eq)/10)*10); // capped at pot: real bettors hold more than random hands
+      let a;
+      if(eq>=Math.max(0.5,fair*1.6))a={c:'#e8457a',t:'חזק – להמר',s:`הימור של בערך ${fmt(Math.round(pot*0.66/10)*10)} (⅔ קופה). אם מהמרים עליך – להעלות.`};
+      else if(eq>=fair)a={c:'#2fbf71',t:'בינוני – צ׳ק / להשוות',s:maxCall!=null&&pot>0?`אם מהמרים עליך – להשוות עד בערך ${fmt(maxCall)}. מעל זה – לקפל.`:'אם מהמרים עליך – להשוות.'};
+      else a={c:'#5b7fd6',t:'חלש – צ׳ק / לקפל',s:maxCall!=null&&pot>0&&maxCall>0?`להשוות רק הימור קטן מ-${fmt(maxCall)}. אחרת לקפל.`:'אם מהמרים עליך – לקפל.'};
+      adv=`<div class="adv" style="border-color:${a.c}"><div class="a" style="color:${a.c}">${a.t}</div><div style="font-size:14px;margin-top:2px">${a.s}</div>
+        <div class="w">יש לך: <b style="color:var(--txt)">${made}</b> · סיכוי לנצח מול ${opps} ${opps>1?'יריבים':'יריב'}: <bdi dir="ltr">${(eq*100).toFixed(0)}%</bdi> (הממוצע: <bdi dir="ltr">${(fair*100).toFixed(0)}%</bdi>)</div></div>`;
+    }
+  }
+  const leftChips=Array.from({length:max-1},(_,i)=>i+2).map(n=>`<button class="chip ${n===hd.left?'on':''}" data-l="${n}">${n}</button>`).join('');
+  $('act').innerHTML=`${adv}
+    <div class="lbl">כמה נשארו ביד (כולל אותי)?</div><div class="chips" id="leftChips">${leftChips}</div>
+    <div class="row" style="margin-top:10px;align-items:end"><label>קופה <div class="step"><button data-d="-50">−</button><input type="number" id="qPot" inputmode="decimal" value="${hd.pot}"><button data-d="50">+</button></div></label></div>
+    <div class="tools">${hd.street<3?`<button id="jumpBtn">⏩ ${STREET[hd.street+1]}</button>`:''}<button id="undoBtn">↩︎ ביטול</button></div>
+    <button class="next" id="nextBtn">▶ יד הבאה – הדילר זז</button>`;
+  $('leftChips').querySelectorAll('.chip').forEach(b=>b.onclick=()=>{hd.left=+b.dataset.l;render()});
+  $('act').querySelectorAll('.step button').forEach(b=>b.onclick=()=>{hd.pot=Math.max(0,(+$('qPot').value||0)+(+b.dataset.d));render()});
+  $('qPot').onchange=()=>{hd.pot=Math.max(0,+$('qPot').value||0);render()};
+  if($('jumpBtn'))$('jumpBtn').onclick=jump;$('undoBtn').onclick=undo;$('nextBtn').onclick=nextHand;
+}
 function drawAct(){
+  if(hd.quick){drawQuick();return}
   if(hd.over){
     const w=hd.over.winner;
     $('act').innerHTML=`<div class="done"><b>${w!=null?`${w===cfg.me?'אתה לקחת':hd.pos[w]+' לקח'} את הקופה – ${fmt(hd.pot)}`:`שואודאון – קופה ${fmt(hd.pot)}`}</b></div>
@@ -287,13 +339,13 @@ function drawAct(){
       <button class="bR" id="bRaise">${raiseLbl}<small id="rLbl">${fmt(raiseAmt)}</small></button>
     </div>
     <div class="sizes">${chips.map(([l,v])=>`<button data-v="${Math.round(v*100)/100}">${l}</button>`).join('')}<input type="number" id="rIn" inputmode="decimal" value="${raiseAmt}"></div>
-    <div class="tools"><button id="undoBtn" ${hist.length?'':'disabled'}>↩︎ ביטול</button><button id="skipBtn">⏭ יד הבאה</button></div>`;
+    <div class="tools"><button id="undoBtn" ${hist.length?'':'disabled'}>↩︎ ביטול</button><button id="jumpBtn">⏩ ${hd.street===0?'קפוץ לפלופ':'קפוץ ל'+STREET[Math.min(hd.street+1,3)]}</button><button id="skipBtn">⏭ יד הבאה</button></div>`;
   $('bFold').onclick=()=>{raiseAmt=null;act('fold')};
   $('bCall').onclick=()=>{raiseAmt=null;act('call')};
   $('bRaise').onclick=()=>{const v=+$('rIn').value;if(!(v>hd.cur))return;raiseAmt=null;act('raise',v)};
   $('act').querySelectorAll('.sizes button').forEach(b=>b.onclick=()=>{raiseAmt=+b.dataset.v;$('rIn').value=raiseAmt;$('rLbl').textContent=fmt(raiseAmt)});
   $('rIn').oninput=()=>{raiseAmt=+$('rIn').value;$('rLbl').textContent=fmt(raiseAmt||0)};
-  $('undoBtn').onclick=undo;$('skipBtn').onclick=nextHand;
+  $('undoBtn').onclick=undo;$('skipBtn').onclick=nextHand;$('jumpBtn').onclick=jump;
 }
 function nextHand(){
   const o=occ();cfg.dealer=o[1]!==undefined?o[1]:cfg.dealer;saveCfg();newHand();target=null;raiseAmt=null;render();window.scrollTo({top:0,behavior:'smooth'});
@@ -318,7 +370,7 @@ let eqT=null;
 function drawEq(){
   if(hd.hero.some(c=>c===null)){$('eq').textContent='בחר את הקלפים שלך.';return}
   const board=hd.board.filter(c=>c!==null);if(![0,3,4,5].includes(board.length)){$('eq').textContent='בלוח צריך 3, 4 או 5 קלפים.';return}
-  const opps=Math.max(1,hd.active.length-1);clearTimeout(eqT);
+  const opps=oppsN();clearTimeout(eqT);
   eqT=setTimeout(()=>{const r=H.equity(hd.hero,board,opps,20000);
     const cats=r.cat.map((x,i)=>[H.CAT[i],x]).filter(x=>x[1]>=0.005).reverse();
     $('eq').innerHTML=`<div class="eqRow"><div><div class="eqBig num">${(r.eq*100).toFixed(1)}%</div><div class="hint" style="margin:0">מול ${opps} ${opps>1?'יריבים':'יריב'} (ידיים אקראיות)</div></div></div>
