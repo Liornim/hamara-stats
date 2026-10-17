@@ -1,0 +1,139 @@
+<!doctype html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Hamara Practice</title>
+<link href="https://fonts.googleapis.com/css2?family=Heebo:wght@400;500;800&family=JetBrains+Mono:wght@500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="poker.css">
+<style>
+.score{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin-bottom:12px}
+.score div{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:10px 12px}
+.score small{color:var(--mut);font-size:12px;display:block}.score b{font-size:24px;font-weight:800}
+.q{text-align:center;padding:20px 14px}
+.q .ctx{color:var(--mut);font-size:14px;line-height:1.6}
+.q .ctx b{color:var(--txt);font-weight:500}
+.q .hand{display:flex;gap:10px;justify-content:center;margin:18px 0 6px;direction:ltr}
+.q .hand .card{width:76px;height:106px;border-radius:10px}.q .hand .card b{font-size:34px}.q .hand .card i{font-size:28px}
+.acts{display:grid;gap:8px;margin-top:16px}
+.acts button{border:0;border-radius:12px;padding:15px;font:800 18px Heebo,sans-serif;color:#fff;cursor:pointer}
+.acts button:disabled{opacity:.35}
+.acts button.pick{outline:3px solid #fff;outline-offset:2px;opacity:1}
+.fb{border-radius:12px;padding:14px;margin-top:14px;text-align:right;font-size:14px;line-height:1.6}
+.fb.ok{background:rgba(60,207,122,.12);border:1px solid rgba(60,207,122,.45)}
+.fb.bad{background:rgba(255,84,102,.12);border:1px solid rgba(255,84,102,.45)}
+.fb h3{margin:0 0 4px;font-size:20px}
+.next{width:100%;margin-top:12px;background:var(--gold);color:#1a1300;border:0;border-radius:12px;padding:14px;font:800 17px Heebo,sans-serif;cursor:pointer}
+.table{position:relative;width:220px;height:120px;margin:14px auto 0;border-radius:60px;background:#173a2b;border:5px solid #2b2216}
+.seat{position:absolute;width:30px;height:30px;border-radius:50%;background:var(--panel2);border:1px solid var(--line);font:500 8.5px Heebo,sans-serif;color:var(--mut);display:flex;align-items:center;justify-content:center;transform:translate(-50%,-50%);text-align:center;line-height:1}
+.seat.me{background:var(--gold);color:#1a1300;font-weight:800;border-color:var(--gold)}
+.seat.r{background:#e8457a;color:#fff;border-color:#e8457a}
+.seat.f{opacity:.4}
+.mini{margin-top:12px}
+</style>
+</head>
+<body>
+<header class="top">
+  <div><h1>Hamara <span>Practice</span></h1><div class="sub">מקבלים יד ומיקום – מחליטים מה עושים לפני הפלופ</div></div>
+  <nav><a href="index.html">טבלה</a><a href="solver.html">סולבר</a></nav>
+</header>
+
+<section class="score">
+  <div><small>נכון</small><b class="num" id="sc">0/0</b></div>
+  <div><small>רצף</small><b class="num" id="streak">0</b></div>
+  <div><small>שיא רצף</small><b class="num" id="best">0</b></div>
+</section>
+
+<section class="panel">
+  <div class="lbl">שחקנים בשולחן</div>
+  <div class="chips" id="nChips"></div>
+  <div class="lbl" style="margin-top:12px">סוג מצבים</div>
+  <div class="chips" id="modeChips">
+    <button class="chip" data-m="open">רק פתיחה</button>
+    <button class="chip" data-m="mix">פתיחה + מול העלאה</button>
+  </div>
+</section>
+
+<section class="panel q" id="q"></section>
+
+<footer>התשובות מבוססות על טבלאות פתיחה סטנדרטיות (אותו מנוע כמו בסולבר) – קירוב טוב, לא GTO מדויק. ידיים על הגבול נבחרות יותר כדי שיהיה מאתגר.</footer>
+
+<script src="engine.js"></script>
+<script src="cards.js"></script>
+<script>
+const H=window.HS,$=id=>document.getElementById(id);
+const ACT={raise:['להעלות','#e8457a'],'3bet':['3-bet','#b0234f'],call:['להשוות','#2fbf71'],fold:['לקפל','#5b7fd6'],check:['צ׳ק','#6b7280']};
+let S={N:8,mode:'mix',ok:0,tot:0,streak:0,best:0};
+try{Object.assign(S,JSON.parse(localStorage.getItem('hamara_practice')||'{}'))}catch(e){}
+const save=()=>{try{localStorage.setItem('hamara_practice',JSON.stringify(S))}catch(e){}};
+let cur=null;
+
+function drawSettings(){
+  $('nChips').innerHTML=[3,4,5,6,7,8,9,10].map(n=>`<button class="chip ${n===S.N?'on':''}" data-n="${n}">${n}</button>`).join('');
+  $('nChips').querySelectorAll('.chip').forEach(b=>b.onclick=()=>{S.N=+b.dataset.n;save();drawSettings();deal()});
+  $('modeChips').querySelectorAll('.chip').forEach(b=>{b.classList.toggle('on',b.dataset.m===S.mode);b.onclick=()=>{S.mode=b.dataset.m;save();drawSettings();deal()}});
+  $('sc').textContent=`${S.ok}/${S.tot}`;$('streak').textContent=S.streak;$('best').textContent=S.best;
+}
+const rnd=a=>a[Math.random()*a.length|0];
+function deal(){
+  const P=H.POS_NAMES[S.N];
+  let pos,raiser=null;
+  const vsRaise=S.mode==='mix'&&Math.random()<0.4;
+  if(vsRaise){
+    pos=rnd(P.slice(1));const before=P.slice(0,P.indexOf(pos)).filter(p=>p!=='BB');
+    if(before.length)raiser=rnd(before);
+  }
+  if(!raiser)pos=rnd(P.filter(p=>p!=='BB'));
+  // choose hand: 55% near the cutoff, 45% true random deal
+  const grid=H.rangeGrid(pos,S.N,raiser);
+  let hand;
+  if(Math.random()<0.55){
+    const cut=raiser?(()=>{const v=H.vsRaise(pos,raiser,S.N);return (Math.random()<.5?v.threebet:v.threebet+v.call)/100})():H.openPct(pos,S.N)/100;
+    const near=H.ORDER.filter(n=>Math.abs(H.RANK[n]-cut)<0.06);hand=rnd(near.length?near:H.ORDER);
+  }
+  let cards;
+  if(hand){ // make concrete cards for the hand
+    const R='23456789TJQKA',r1=R.indexOf(hand[0]),r2=R.indexOf(hand[1]);
+    const s1=Math.random()*4|0;let s2=hand.length===2||hand[2]==='o'?(s1+1+(Math.random()*3|0))%4:s1;
+    cards=[r1*4+s1,r2*4+s2];
+  }else{const a=Math.random()*52|0;let b;do{b=Math.random()*52|0}while(b===a);cards=[a,b];hand=H.cardsToHand(a,b)}
+  cur={pos,raiser,hand,cards,ans:H.advise(hand,pos,S.N,raiser),grid,picked:null};
+  drawQ();
+}
+function seats(){
+  const P=H.POS_NAMES[S.N];const n=P.length;
+  return P.map((p,i)=>{const ang=Math.PI/2+ (i+1)/(n)*2*Math.PI*-1+Math.PI; // spread around
+    const a=(i/n)*2*Math.PI+Math.PI/2;const x=50+48*Math.cos(a),y=50+46*Math.sin(a);
+    let c='';if(p===cur.pos)c='me';else if(p===cur.raiser)c='r';else if(P.indexOf(p)<P.indexOf(cur.pos))c='f';
+    return `<div class="seat ${c}" style="left:${x}%;top:${y}%">${p}</div>`}).join('');
+}
+function drawQ(){
+  const P=H.POS_NAMES[S.N];const behind=P.length-1-P.indexOf(cur.pos);
+  const ctx=cur.raiser?`<b>${cur.raiser}</b> העלה, כל השאר לפניך קיפלו.`:`כולם לפניך <b>קיפלו</b>.`;
+  const options=cur.raiser?['fold','call','3bet']:['fold','raise'];
+  $('q').innerHTML=`<div class="ctx"><b>${S.N} שחקנים</b> · אתה ב-<b>${cur.pos}</b> (${H.HEB[cur.pos]}) · עוד ${behind} אחריך<br>${ctx}</div>
+   <div class="table">${seats()}</div>
+   <div class="hand">${CARD.html(cur.cards[0])}${CARD.html(cur.cards[1])}</div>
+   <div class="hint num" style="text-align:center;margin:0">${cur.hand}</div>
+   <div class="acts" style="grid-template-columns:repeat(${options.length},minmax(0,1fr))">${options.map(a=>`<button data-a="${a}" style="background:${ACT[a][1]}"><bdi dir="ltr">${ACT[a][0]}</bdi></button>`).join('')}</div>
+   <div id="fb"></div>`;
+  $('q').querySelectorAll('.acts button').forEach(b=>b.onclick=()=>answer(b.dataset.a));
+}
+function answer(a){
+  if(cur.picked)return;cur.picked=a;
+  const right=a===cur.ans.act;S.tot++;if(right){S.ok++;S.streak++;S.best=Math.max(S.best,S.streak)}else S.streak=0;save();drawSettings();
+  $('q').querySelectorAll('.acts button').forEach(b=>{b.disabled=true;if(b.dataset.a===a)b.classList.add('pick')});
+  const top=(H.RANK[cur.hand]*100).toFixed(1);
+  let why;
+  if(cur.raiser){const v=cur.ans.v;why=`מול העלאה מ-${cur.raiser}: <bdi dir="ltr">3-bet</bdi> עם הטופ <bdi dir="ltr">${v.threebet.toFixed(0)}%</bdi>, משווים עם הבאים בתור עד <bdi dir="ltr">${(v.threebet+v.call).toFixed(0)}%</bdi>. <bdi dir="ltr">${cur.hand}</bdi> בטופ <bdi dir="ltr">${top}%</bdi>.`}
+  else why=`מ-${cur.pos} עם ${S.N} שחקנים מעלים בערך <bdi dir="ltr">${cur.ans.pct}%</bdi> מהידיים. <bdi dir="ltr">${cur.hand}</bdi> בטופ <bdi dir="ltr">${top}%</bdi>.`;
+  let g='';for(let i=0;i<13;i++)for(let j=0;j<13;j++){const n=H.handName(i,j);g+=`<div class="cell ${n===cur.hand?'me':''}" style="background:${ACT[cur.grid[n]][1]}">${n}</div>`}
+  $('fb').innerHTML=`<div class="fb ${right?'ok':'bad'}"><h3>${right?'✅ נכון':'❌ לא'} – <bdi dir="ltr">${ACT[cur.ans.act][0]}</bdi></h3>${why}</div>
+    <div class="gridWrap mini"><div class="grid">${g}</div></div>
+    <button class="next" id="next">יד הבאה</button>`;
+  $('next').onclick=deal;$('next').scrollIntoView({behavior:'smooth',block:'nearest'});
+}
+drawSettings();deal();
+</script>
+</body>
+</html>
