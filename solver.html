@@ -6,38 +6,53 @@
 <title>Hamara Solver</title>
 <link href="https://fonts.googleapis.com/css2?family=Heebo:wght@400;500;800&family=JetBrains+Mono:wght@500&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="poker.css">
+<style>
+.modes{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:6px;margin-bottom:12px}
+.modes button{background:var(--panel2);border:1px solid var(--line);color:var(--mut);border-radius:10px;padding:8px 4px;font:500 13px Heebo,sans-serif;cursor:pointer;line-height:1.2}
+.modes button.on{background:#2a3140;color:var(--txt);border-color:var(--gold)}
+.modes button i{display:block;font-style:normal;font-size:16px}
+.tbl{position:relative;width:100%;max-width:520px;margin:30px auto 34px;aspect-ratio:1.45/1}
+.felt{position:absolute;inset:6% 7%;border-radius:999px;background:radial-gradient(ellipse at center,#1f5a40 0%,#163f2d 70%);border:7px solid #2b2216;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:2px}
+.felt .info{color:#cfe9da;font-size:13px;text-align:center;line-height:1.4}
+.felt .info b{font-size:20px;font-weight:800;color:#fff}
+.seat{position:absolute;transform:translate(-50%,-50%);width:54px;height:54px;border-radius:50%;border:2px solid #3a4150;background:var(--panel2);color:var(--txt);font:800 12px Heebo,sans-serif;display:flex;flex-direction:column;align-items:center;justify-content:center;cursor:pointer;padding:0;line-height:1.05;-webkit-tap-highlight-color:transparent}
+.seat small{font-weight:400;font-size:9.5px;color:var(--mut)}
+.seat.empty{background:transparent;border:2px dashed #353b47;color:var(--dim);font-weight:400;font-size:20px}
+.seat.me{background:var(--gold);border-color:var(--gold);color:#1a1300}.seat.me small{color:#5a4500}
+.seat.raiser{background:#e8457a;border-color:#e8457a;color:#fff}.seat.raiser small{color:#ffe0ea}
+.seat.folded{opacity:.45}
+.dbtn{position:absolute;width:20px;height:20px;border-radius:50%;background:#fff;color:#111;font:800 11px Heebo,sans-serif;display:flex;align-items:center;justify-content:center;transform:translate(-50%,-50%);box-shadow:0 0 0 2px #0d0f12;pointer-events:none}
+.nextBtn{width:100%;margin-top:12px;background:var(--gold);color:#1a1300;border:0;border-radius:12px;padding:13px;font:800 17px Heebo,sans-serif;cursor:pointer}
+.modeHint{color:var(--gold);font-size:13px;text-align:center;min-height:20px;margin-top:6px}
+details{margin-top:12px}summary{color:var(--mut);font-size:13px;cursor:pointer}
+.heroRow{display:flex;align-items:center;gap:10px;justify-content:space-between}
+.resQuick{font-size:30px;font-weight:800;line-height:1}
+</style>
 </head>
 <body>
 <header class="top">
-  <div><h1>Hamara <span>Solver</span></h1><div class="sub">מכניסים יד ומיקום, ומקבלים מה לעשות לפני הפלופ ואת סיכויי הזכייה</div></div>
+  <div><h1>Hamara <span>Solver</span></h1></div>
   <nav><a href="index.html">טבלה</a><a href="practice.html">תרגול</a></nav>
 </header>
 
 <section class="panel">
-  <div class="lbl">הקלפים שלך</div>
-  <div class="slots" id="heroSlots"></div>
-  <div class="lbl" style="margin-top:14px">קלפים על הלוח <span class="mut">(לא חובה – פלופ / טרן / ריבר)</span></div>
-  <div class="slots" id="boardSlots"></div>
-  <div class="deck" id="deck"></div>
-  <div class="row" style="margin-top:10px"><button class="ghost" id="clearBtn">ניקוי</button><button class="ghost" id="randBtn">יד אקראית</button><button class="ghost" id="shareBtn">🔗 העתק לינק</button></div>
-  <div class="hint" id="shareMsg"></div>
+  <div class="modes" id="modes">
+    <button data-m="sit" class="on"><i>💺</i>יושב / ריק</button>
+    <button data-m="me"><i>🙋</i>איפה אני</button>
+    <button data-m="dealer"><i>Ⓓ</i>דילר</button>
+    <button data-m="raise"><i>⬆️</i>מי העלה</button>
+  </div>
+  <div class="tbl" id="tbl"></div>
+  <div class="modeHint" id="modeHint"></div>
+  <button class="nextBtn" id="nextBtn">▶ יד הבאה – הדילר זז</button>
 </section>
 
 <section class="panel">
-  <div class="lbl">כמה שחקנים בשולחן</div>
-  <div class="chips" id="nChips"></div>
-  <div class="lbl" style="margin-top:14px">המיקום שלך</div>
-  <div class="chips" id="posChips"></div>
-  <div class="hint" id="posHint"></div>
-  <div class="lbl" style="margin-top:14px">מה קרה לפניך</div>
-  <div class="chips" id="sitChips">
-    <button class="chip on" data-s="open">כולם קיפלו אליי</button>
-    <button class="chip" data-s="raise">מישהו העלה</button>
-  </div>
-  <div id="raiserWrap" style="display:none;margin-top:10px">
-    <div class="lbl">מי העלה?</div>
-    <div class="chips" id="raiserChips"></div>
-  </div>
+  <div class="heroRow"><div class="slots" id="heroSlots"></div><div id="quick"></div></div>
+  <div class="deck" id="deck"></div>
+  <details id="boardBox"><summary>לוח – פלופ / טרן / ריבר (לא חובה)</summary><div class="slots" id="boardSlots" style="margin-top:10px"></div></details>
+  <div class="row" style="margin-top:10px"><button class="ghost" id="clearBtn">ניקוי קלפים</button><button class="ghost" id="shareBtn">🔗 העתק לינק</button></div>
+  <div class="hint" id="shareMsg"></div>
 </section>
 
 <section id="result"></section>
@@ -51,118 +66,136 @@
 <section class="panel" id="eqPanel">
   <div class="lbl">סיכויי זכייה</div>
   <div id="eq" class="hint">בחר שני קלפים כדי לחשב.</div>
-  <div class="potodds">
-    <div class="lbl" style="margin-top:14px">כדאי להשוות? <span class="mut">(הכנס קופה והימור)</span></div>
-    <div class="row"><label>קופה <input type="number" id="pot" inputmode="decimal" placeholder="100"></label><label>צריך להשוות <input type="number" id="bet" inputmode="decimal" placeholder="50"></label></div>
-    <div id="po" class="hint"></div>
-  </div>
+  <div class="lbl" style="margin-top:14px">כדאי להשוות? <span class="mut">(קופה והימור)</span></div>
+  <div class="row"><label>קופה <input type="number" id="pot" inputmode="decimal" placeholder="100"></label><label>צריך להשוות <input type="number" id="bet" inputmode="decimal" placeholder="50"></label></div>
+  <div id="po" class="hint"></div>
 </section>
 
 <footer>
   <b>חשוב לדעת:</b> זה לא סולבר אמיתי כמו GTO Wizard. ההמלצות לפני הפלופ מבוססות על טבלאות פתיחה סטנדרטיות – קירוב טוב, לא חישוב GTO מדויק.
-  סיכויי הזכייה הם חישוב אמיתי (30,000 סימולציות), אבל מול יריבים עם <i>ידיים אקראיות</i> – בפועל מי שנשאר ביד מחזיק בדרך כלל יד חזקה יותר, אז המספר האמיתי נמוך יותר.
+  סיכויי הזכייה הם חישוב אמיתי (30,000 סימולציות), אבל מול יריבים עם <i>ידיים אקראיות</i> – בפועל מי שנשאר ביד מחזיק בדרך כלל יד חזקה יותר.
 </footer>
 
 <script src="engine.js"></script>
 <script src="cards.js"></script>
 <script>
-const H=window.HS;
-const st={hero:[null,null],board:[null,null,null,null,null],slot:['hero',0],N:8,pos:null,sit:'open',raiser:null};
-try{const s=JSON.parse(localStorage.getItem('hamara_solver')||'{}');if(s.N)st.N=s.N;if(s.pos)st.pos=s.pos}catch(e){}
-// --- link with a pre-filled hand: ?h=KcJc&b=6cTs5d5s&n=6&pos=CO&r=HJ&pot=100&bet=50
-const parseCards=str=>{const out=[];const t=(str||'').replace(/10/g,'T').replace(/\s|,/g,'');for(let i=0;i+1<t.length;i+=2){const r='23456789TJQKA'.indexOf(t[i].toUpperCase()),su='shdc'.indexOf(t[i+1].toLowerCase());if(r>=0&&su>=0)out.push(r*4+su)}return out};
-(function(){const q=new URLSearchParams(location.search);if(![...q.keys()].length)return;
-  const n=+q.get('n');if(n>=2&&n<=10)st.N=n;
-  const pos=(q.get('pos')||'').toUpperCase();if(HS.POS_NAMES[st.N].includes(pos))st.pos=pos;
-  const r=(q.get('r')||'').toUpperCase();if(r&&HS.POS_NAMES[st.N].includes(r)){st.sit='raise';st.raiser=r}
-  const seen=new Set();const h=parseCards(q.get('h')).filter(c=>!seen.has(c)&&seen.add(c)),b=parseCards(q.get('b')).filter(c=>!seen.has(c)&&seen.add(c));
-  st.hero=[h[0]??null,h[1]??null];b.slice(0,5).forEach((c,i)=>st.board[i]=c);
-  st.slot=h.length<2?['hero',h.length]:b.length<5?['board',b.length]:['board',4];
-  st.pendingPot=q.get('pot');st.pendingBet=q.get('bet');
-})();
-function linkFor(){const R='23456789TJQKA',S='shdc',cs=c=>R[c>>2]+S[c&3];const q=new URLSearchParams();
-  const h=st.hero.filter(c=>c!==null),b=st.board.filter(c=>c!==null);
-  if(h.length)q.set('h',h.map(cs).join(''));if(b.length)q.set('b',b.map(cs).join(''));
-  q.set('n',st.N);q.set('pos',st.pos);if(st.sit==='raise'&&st.raiser)q.set('r',st.raiser);
-  if(+document.getElementById('pot').value>0)q.set('pot',document.getElementById('pot').value);if(+document.getElementById('bet').value>0)q.set('bet',document.getElementById('bet').value);
-  return location.origin+location.pathname+'?'+q.toString()}
+const H=window.HS,$=id=>document.getElementById(id);
+const SEATS=9;
+const st={seats:[1,1,1,1,1,1,1,1,0],me:0,dealer:5,raiser:null,mode:'sit',
+  hero:[null,null],board:[null,null,null,null,null],slot:['hero',0],lastEq:null};
+try{const s=JSON.parse(localStorage.getItem('hamara_table')||'null');if(s&&Array.isArray(s.seats)&&s.seats.length===SEATS){st.seats=s.seats;st.me=s.me;st.dealer=s.dealer}}catch(e){}
+const save=()=>{try{localStorage.setItem('hamara_table',JSON.stringify({seats:st.seats,me:st.me,dealer:st.dealer}))}catch(e){}};
 
-const $=id=>document.getElementById(id);
+// ---------- table logic ----------
+const nextOcc=i=>{for(let k=1;k<=SEATS;k++){const j=(i+k)%SEATS;if(st.seats[j])return j}return i};
+function positions(){
+  st.seats[st.me]=1;
+  if(!st.seats[st.dealer])st.dealer=nextOcc(st.dealer);
+  const occ=[st.dealer];for(let k=1;k<SEATS;k++){const j=(st.dealer+k)%SEATS;if(st.seats[j])occ.push(j)}
+  const N=occ.length,pos={};if(N<2)return {N,pos};
+  const P=H.POS_NAMES[N];
+  if(N===2){pos[occ[0]]='SB';pos[occ[1]]='BB'}
+  else{pos[occ[0]]='BTN';pos[occ[1]]='SB';pos[occ[2]]='BB';occ.slice(3).forEach((s,i)=>pos[s]=P[i])}
+  return {N,pos};
+}
+const MODE_HINT={sit:'לחיצה על כיסא = יושב / קם',me:'לחץ על הכיסא שלך',dealer:'לחץ על הכיסא של הדילר',raise:'לחץ על מי שהעלה לפניך (שוב = ביטול)'};
+function setMode(m){st.mode=m;$('modes').querySelectorAll('button').forEach(b=>b.classList.toggle('on',b.dataset.m===m));$('modeHint').textContent=MODE_HINT[m]}
+$('modes').querySelectorAll('button').forEach(b=>b.onclick=()=>setMode(b.dataset.m));
+function tapSeat(i){
+  const T=positions();
+  if(st.mode==='sit'){if(i===st.me){$('modeHint').textContent='זה הכיסא שלך – כדי לעבור, בחר "איפה אני"';return}
+    st.seats[i]=st.seats[i]?0:1;if(st.raiser===i)st.raiser=null;
+    if(st.seats.filter(Boolean).length<2){st.seats[i]=1;$('modeHint').textContent='צריך לפחות 2 שחקנים';return}}
+  else if(st.mode==='me'){st.seats[i]=1;st.me=i;if(st.raiser===i)st.raiser=null;setMode('sit')}
+  else if(st.mode==='dealer'){if(!st.seats[i])st.seats[i]=1;st.dealer=i;st.raiser=null;setMode('sit')}
+  else if(st.mode==='raise'){
+    if(st.raiser===i){st.raiser=null}
+    else if(!st.seats[i]||i===st.me){return}
+    else{const P=H.POS_NAMES[T.N];if(T.pos[i]==='BB'||P.indexOf(T.pos[i])>P.indexOf(T.pos[st.me])){$('modeHint').textContent=`${T.pos[i]} מדבר אחריך – הוא לא יכול להעלות לפניך`;return}st.raiser=i}
+  }
+  save();render();
+}
+$('nextBtn').onclick=()=>{st.dealer=nextOcc(st.dealer);st.raiser=null;st.hero=[null,null];st.board=[null,null,null,null,null];st.slot=['hero',0];$('pot').value='';$('bet').value='';save();render();window.scrollTo({top:0,behavior:'smooth'})};
+function drawTable(){
+  const T=positions();let h='<div class="felt"><div class="info" id="feltInfo"></div></div>';
+  const P=H.POS_NAMES[T.N]||[];
+  for(let i=0;i<SEATS;i++){
+    const a=(90+i*40)*Math.PI/180,x=50+44*Math.cos(a),y=50+47*Math.sin(a);
+    const occ=st.seats[i];const p=T.pos[i];
+    const folded=occ&&i!==st.me&&i!==st.raiser&&p!=='BB'&&p!=='SB'&&P.indexOf(p)<P.indexOf(T.pos[st.me]);
+    const cls=!occ?'empty':i===st.me?'me':i===st.raiser?'raiser':folded?'folded':'';
+    h+=`<button class="seat ${cls}" data-i="${i}" style="left:${x}%;top:${y}%">${occ?`${p||''}<small>${i===st.me?'אני':i===st.raiser?'העלה':''}</small>`:'+'}</button>`;
+    if(i===st.dealer){const dx=50+30*Math.cos(a),dy=50+21*Math.sin(a);h+=`<div class="dbtn" style="left:${dx}%;top:${dy}%">D</div>`}
+  }
+  $('tbl').innerHTML=h;
+  $('tbl').querySelectorAll('.seat').forEach(b=>b.onclick=()=>tapSeat(+b.dataset.i));
+  const me=T.pos[st.me];
+  $('feltInfo').innerHTML=`<b>${me}</b><br>${H.HEB[me]} · ${T.N} שחקנים${st.raiser!==null?`<br>${T.pos[st.raiser]} העלה`:''}`;
+  st.N=T.N;st.pos=me;st.raiserPos=st.raiser!==null?T.pos[st.raiser]:null;
+}
 
-function save(){try{localStorage.setItem('hamara_solver',JSON.stringify({N:st.N,pos:st.pos}))}catch(e){}}
+// ---------- cards ----------
 function used(){return new Set([...st.hero,...st.board].filter(c=>c!==null))}
-
 function drawSlots(){
   const mk=(arr,kind)=>arr.map((c,i)=>{const on=st.slot[0]===kind&&st.slot[1]===i;return `<button class="slot ${on?'on':''} ${c===null?'empty':''}" data-k="${kind}" data-i="${i}">${c===null?(kind==='board'?['פלופ','','','טרן','ריבר'][i]:'?'):CARD.html(c)}</button>`}).join('');
   $('heroSlots').innerHTML=mk(st.hero,'hero');$('boardSlots').innerHTML=mk(st.board,'board');
-  document.querySelectorAll('.slot').forEach(b=>b.onclick=()=>{const k=b.dataset.k,i=+b.dataset.i;const arr=st[k];if(arr[i]!==null&&st.slot[0]===k&&st.slot[1]===i){arr[i]=null}st.slot=[k,i];render()});
+  document.querySelectorAll('.slot').forEach(b=>b.onclick=()=>{const k=b.dataset.k,i=+b.dataset.i;if(st[k][i]!==null&&st.slot[0]===k&&st.slot[1]===i)st[k][i]=null;st.slot=[k,i];render()});
 }
 function drawDeck(){
   const u=used();let h='';
-  for(let s=0;s<4;s++){for(let r=12;r>=0;r--){const c=r*4+s;h+=`<button class="dc ${CARD.suitCls(c)} ${u.has(c)?'used':''}" data-c="${c}">${CARD.rank(c)}<small>${CARD.suit(c)}</small></button>`}}
+  for(let s=0;s<4;s++)for(let r=12;r>=0;r--){const c=r*4+s;h+=`<button class="dc ${CARD.suitCls(c)} ${u.has(c)?'used':''}" data-c="${c}">${CARD.rank(c)}<small>${CARD.suit(c)}</small></button>`}
   $('deck').innerHTML=h;
   $('deck').querySelectorAll('.dc').forEach(b=>b.onclick=()=>{const c=+b.dataset.c;if(used().has(c))return;const [k,i]=st.slot;st[k][i]=c;advanceSlot();render()});
 }
 function advanceSlot(){
-  const order=[['hero',0],['hero',1],['board',0],['board',1],['board',2],['board',3],['board',4]];
+  const boardOpen=$('boardBox').open;
+  const order=[['hero',0],['hero',1],...(boardOpen?[['board',0],['board',1],['board',2],['board',3],['board',4]]:[])];
   const idx=order.findIndex(([k,i])=>k===st.slot[0]&&i===st.slot[1]);
   for(let j=idx+1;j<order.length;j++){const [k,i]=order[j];if(st[k][i]===null){st.slot=[k,i];return}}
 }
-function drawTable(){
-  $('nChips').innerHTML=[2,3,4,5,6,7,8,9,10].map(n=>`<button class="chip ${n===st.N?'on':''}" data-n="${n}">${n}</button>`).join('');
-  $('nChips').querySelectorAll('.chip').forEach(b=>b.onclick=()=>{st.N=+b.dataset.n;if(!H.POS_NAMES[st.N].includes(st.pos))st.pos=null;st.raiser=null;save();render()});
-  const P=H.POS_NAMES[st.N];if(!st.pos||!P.includes(st.pos))st.pos=P.includes('CO')?'CO':P[0];
-  $('posChips').innerHTML=P.map(p=>`<button class="chip ${p===st.pos?'on':''}" data-p="${p}">${p}</button>`).join('');
-  $('posChips').querySelectorAll('.chip').forEach(b=>b.onclick=()=>{st.pos=b.dataset.p;st.raiser=null;save();render()});
-  const behind=P.length-1-P.indexOf(st.pos);
-  $('posHint').textContent=`${st.pos} = ${H.HEB[st.pos]}. ${behind?`עוד ${behind} שחקנים מדברים אחריך.`:'אתה האחרון לדבר.'}`;
-  $('sitChips').querySelectorAll('.chip').forEach(b=>{b.classList.toggle('on',b.dataset.s===st.sit);b.onclick=()=>{st.sit=b.dataset.s;render()}});
-  const before=P.slice(0,P.indexOf(st.pos)).filter(p=>p!=='BB');
-  const raiseBtn=$('sitChips').querySelector('[data-s=raise]');raiseBtn.disabled=!before.length;
-  if(!before.length&&st.sit==='raise')st.sit='open';
-  $('raiserWrap').style.display=st.sit==='raise'?'block':'none';
-  if(st.sit==='raise'){if(!before.includes(st.raiser))st.raiser=before[before.length-1];
-    $('raiserChips').innerHTML=before.map(p=>`<button class="chip ${p===st.raiser?'on':''}" data-p="${p}">${p}</button>`).join('');
-    $('raiserChips').querySelectorAll('.chip').forEach(b=>b.onclick=()=>{st.raiser=b.dataset.p;render()});}
-}
+$('boardBox').addEventListener('toggle',()=>{if($('boardBox').open&&st.hero.every(c=>c!==null)){const i=st.board.findIndex(c=>c===null);if(i>=0)st.slot=['board',i];drawSlots()}});
+
+// ---------- result ----------
 const ACT={raise:['להעלות','#e8457a'],'3bet':['3-bet','#b0234f'],call:['להשוות','#2fbf71'],fold:['לקפל','#5b7fd6'],check:['צ׳ק','#6b7280']};
 function drawResult(){
-  const raiser=st.sit==='raise'?st.raiser:null;
+  const raiser=st.raiserPos;
   const hand=(st.hero[0]!==null&&st.hero[1]!==null)?H.cardsToHand(st.hero[0],st.hero[1]):null;
   const grid=H.rangeGrid(st.pos,st.N,raiser);
-  // freq
   const tot={};H.ALL.forEach(n=>{tot[grid[n]]=(tot[grid[n]]||0)+H.combos(n)});
-  const acts=Object.keys(tot).sort((a,b)=>['raise','3bet','call','check','fold'].indexOf(a)-['raise','3bet','call','check','fold'].indexOf(b));
+  const ord=['raise','3bet','call','check','fold'];const acts=Object.keys(tot).sort((a,b)=>ord.indexOf(a)-ord.indexOf(b));
   $('freq').innerHTML=acts.map(a=>`<div style="flex:${tot[a]};background:${ACT[a][1]}"><b>${ACT[a][0]}</b><span class="num">${(tot[a]/13.26).toFixed(1)}%</span></div>`).join('');
-  $('legend').innerHTML=acts.map(a=>`<span><i style="background:${ACT[a][1]}"></i>${ACT[a][0]}</span>`).join('');
+  $('legend').innerHTML=acts.map(a=>`<span><i style="background:${ACT[a][1]}"></i><bdi dir="ltr">${ACT[a][0]}</bdi></span>`).join('');
   $('gridTitle').textContent=raiser?`${st.pos} מול העלאה של ${raiser} · ${st.N} שחקנים`:`${st.pos} כשכולם קיפלו · ${st.N} שחקנים`;
-  let g='';for(let i=0;i<13;i++)for(let j=0;j<13;j++){const n=H.handName(i,j);g+=`<div class="cell ${n===hand?'me':''}" style="background:${ACT[grid[n]][1]}" title="${n}">${n}</div>`}
+  let g='';for(let i=0;i<13;i++)for(let j=0;j<13;j++){const n=H.handName(i,j);g+=`<div class="cell ${n===hand?'me':''}" style="background:${ACT[grid[n]][1]}">${n}</div>`}
   $('grid').innerHTML=g;
-  if(!hand){$('result').innerHTML=`<div class="panel big muted">בחר את שני הקלפים שלך למעלה</div>`;return}
+  if(!hand){$('result').innerHTML='';$('quick').innerHTML='';return}
   const a=H.advise(hand,st.pos,st.N,raiser);
-  const place=H.ORDER.indexOf(hand)+1;const top=(H.RANK[hand]*100).toFixed(1);
+  $('quick').innerHTML=`<div class="resQuick" style="color:${ACT[a.act][1]}"><bdi dir="ltr">${a.label}</bdi></div>`;
+  const top=(H.RANK[hand]*100).toFixed(1);
   let why='';
   if(a.act==='check')why=a.why;
-  else if(!raiser)why=`מהמיקום הזה מעלים בערך <bdi dir="ltr">${a.pct}%</bdi> מהידיים. <bdi dir="ltr">${hand}</bdi> בטופ <bdi dir="ltr">${top}%</bdi> – ${a.act==='raise'?'בפנים':'מחוץ לטווח'}.`;
-  else why=`${raiser} פותח בערך <bdi dir="ltr">${a.v.op}%</bdi> מהידיים. מולו: <bdi dir="ltr">3-bet</bdi> עם הטופ <bdi dir="ltr">${a.v.threebet.toFixed(0)}%</bdi>, השוואה עם עוד כ-<bdi dir="ltr">${a.v.call.toFixed(0)}%</bdi>. <bdi dir="ltr">${hand}</bdi> בטופ <bdi dir="ltr">${top}%</bdi>.`;
-  const pre=st.board.some(c=>c!==null)?`<div class="hint" style="margin:0 0 6px;color:var(--gold)">ההמלצה הזו היא להחלטה לפני הפלופ. אחרי הפלופ – תסתכל על סיכויי הזכייה למטה.</div>`:'';
+  else if(!raiser)why=`מ-${st.pos} מעלים בערך <bdi dir="ltr">${a.pct}%</bdi> מהידיים. <bdi dir="ltr">${hand}</bdi> בטופ <bdi dir="ltr">${top}%</bdi> – ${a.act==='raise'?'בפנים':'מחוץ לטווח'}.`;
+  else why=`${raiser} פותח בערך <bdi dir="ltr">${a.v.op}%</bdi>. מולו: <bdi dir="ltr">3-bet</bdi> עם הטופ <bdi dir="ltr">${a.v.threebet.toFixed(0)}%</bdi>, השוואה עם עוד כ-<bdi dir="ltr">${a.v.call.toFixed(0)}%</bdi>. <bdi dir="ltr">${hand}</bdi> בטופ <bdi dir="ltr">${top}%</bdi>.`;
+  const pre=st.board.some(c=>c!==null)?`<div class="hint" style="margin:0 0 6px;color:var(--gold)">ההמלצה היא להחלטה לפני הפלופ. אחרי הפלופ – תסתכל על סיכויי הזכייה.</div>`:'';
   $('result').innerHTML=`<div class="panel res" style="border-color:${ACT[a.act][1]}">${pre}
     <div class="resHand">${CARD.html(st.hero[0])}${CARD.html(st.hero[1])}<span class="hn num">${hand}</span></div>
-    <div class="resAct" style="color:${ACT[a.act][1]}"><bdi dir="ltr">${a.label}</bdi></div>${a.size?`<div class="hint" style="margin:2px 0 0;color:var(--txt)">${a.size}</div>`:''}
+    <div class="resAct" style="color:${ACT[a.act][1]}"><bdi dir="ltr">${a.label}</bdi></div>
+    ${a.size?`<div class="hint" style="margin:2px 0 0;color:var(--txt)">${a.size}</div>`:''}
     <div class="hint" style="margin:6px 0 0">${why}</div>
-    <div class="hint" style="margin:4px 0 0">דירוג היד: ${place} מתוך 169.</div></div>`;
+    <div class="hint" style="margin:4px 0 0">דירוג היד: ${H.ORDER.indexOf(hand)+1} מתוך 169.</div></div>`;
 }
+
+// ---------- equity ----------
 let eqTimer=null,eqToken=0;
 function drawEquity(){
   const hero=st.hero.filter(c=>c!==null);const board=st.board.filter(c=>c!==null);
-  if(hero.length<2){$('eq').innerHTML='בחר שני קלפים כדי לחשב.';return}
+  if(hero.length<2){$('eq').innerHTML='בחר שני קלפים כדי לחשב.';st.lastEq=null;drawPot();return}
   if(![0,3,4,5].includes(board.length)){$('eq').innerHTML='בלוח צריך 3, 4 או 5 קלפים (או אף אחד).';return}
   const opps=Math.max(1,st.N-1);const token=++eqToken;
   let it=0,w=0,t=0,cat=new Array(9).fill(0);const TOTAL=30000,CH=3000;
-  // also vs 1 opponent
   const one=H.equity(hero,board,1,8000);
   function step(){if(token!==eqToken)return;const r=H.equity(hero,board,opps,CH);it+=CH;w+=r.win*CH;t+=r.tie*CH;r.cat.forEach((x,i)=>cat[i]+=x*CH);
-    const eq=(w+t)/it;show(eq,cat.map(x=>x/it),it<TOTAL);if(it<TOTAL)eqTimer=setTimeout(step,0)}
+    show((w+t)/it,cat.map(x=>x/it),it<TOTAL);if(it<TOTAL)eqTimer=setTimeout(step,0)}
   function show(eq,c,running){
     const fair=1/(opps+1);
     const made=board.length?H.CAT[Math.floor(H.eval7(hero.concat(board))/1e6)]:null;
@@ -170,7 +203,7 @@ function drawEquity(){
     $('eq').innerHTML=`<div class="eqRow">
       <div><div class="eqBig num">${(eq*100).toFixed(1)}%</div><div class="hint" style="margin:0">מול ${opps} יריבים${running?' · מחשב…':''}</div></div>
       <div><div class="eqBig num" style="font-size:26px">${(one.eq*100).toFixed(1)}%</div><div class="hint" style="margin:0">מול יריב אחד</div></div></div>
-      <div class="meter"><div style="width:${eq*100}%"></div><i style="right:${fair*100}%" title="חלק הוגן"></i></div>
+      <div class="meter"><div style="width:${eq*100}%"></div><i style="right:${fair*100}%"></i></div>
       <div class="hint">החלק ה"הוגן" עם ${opps+1} שחקנים הוא ${(fair*100).toFixed(0)}% – ${eq>fair?'אתה מעל הממוצע':'אתה מתחת לממוצע'}.</div>
       ${made?`<div class="hint">יש לך עכשיו: <b style="color:var(--txt)">${made}</b></div>`:''}
       <div class="lbl" style="margin-top:12px">${board.length===5?'היד שלך':'במה תסיים (סיכוי)'}</div>
@@ -189,12 +222,29 @@ function drawPot(){
 }
 $('pot').oninput=$('bet').oninput=drawPot;
 $('clearBtn').onclick=()=>{st.hero=[null,null];st.board=[null,null,null,null,null];st.slot=['hero',0];render()};
-$('randBtn').onclick=()=>{const u=new Set(st.board.filter(c=>c!==null));const d=[...Array(52).keys()].filter(c=>!u.has(c));const a=d.splice(Math.random()*d.length|0,1)[0],b=d[Math.random()*d.length|0];st.hero=[a,b];st.slot=['board',0];render()};
-if(st.pendingPot)$('pot').value=st.pendingPot;if(st.pendingBet)$('bet').value=st.pendingBet;
-$('shareBtn').onclick=async()=>{const u=linkFor();try{await navigator.clipboard.writeText(u);$('shareMsg').textContent='הלינק הועתק ✓'}catch(e){$('shareMsg').innerHTML='<span class="num" style="word-break:break-all">'+u+'</span>'}
-  try{history.replaceState(null,'',u)}catch(e){}};
-function render(){drawSlots();drawDeck();drawTable();drawResult();drawEquity()}
-render();
+
+// ---------- links: ?h=KcJc&b=6cTs5d5s&n=6&pos=CO&r=HJ&pot=100&bet=50 ----------
+const parseCards=str=>{const out=[];const t=(str||'').replace(/10/g,'T').replace(/\s|,/g,'');for(let i=0;i+1<t.length;i+=2){const r='23456789TJQKA'.indexOf(t[i].toUpperCase()),su='shdc'.indexOf(t[i+1].toLowerCase());if(r>=0&&su>=0)out.push(r*4+su)}return out};
+(function(){const q=new URLSearchParams(location.search);if(![...q.keys()].length)return;
+  const n=+q.get('n'),pos=(q.get('pos')||'').toUpperCase(),r=(q.get('r')||'').toUpperCase();
+  if(n>=2&&n<=SEATS){st.seats=Array.from({length:SEATS},(_,i)=>i<n?1:0);st.me=0;st.raiser=null;
+    if(H.POS_NAMES[n].includes(pos)){for(let d=0;d<n;d++){st.dealer=d;if(positions().pos[0]===pos)break}}
+    if(r){const T=positions();for(const s in T.pos)if(T.pos[s]===r&&+s!==st.me)st.raiser=+s}}
+  const seen=new Set();const h=parseCards(q.get('h')).filter(c=>!seen.has(c)&&seen.add(c)),b=parseCards(q.get('b')).filter(c=>!seen.has(c)&&seen.add(c));
+  st.hero=[h[0]??null,h[1]??null];b.slice(0,5).forEach((c,i)=>st.board[i]=c);if(b.length)$('boardBox').open=true;
+  st.slot=h.length<2?['hero',h.length]:['board',Math.min(b.length,4)];
+  if(q.get('pot'))$('pot').value=q.get('pot');if(q.get('bet'))$('bet').value=q.get('bet');
+})();
+function linkFor(){const R='23456789TJQKA',S='shdc',cs=c=>R[c>>2]+S[c&3];const q=new URLSearchParams();
+  const h=st.hero.filter(c=>c!==null),b=st.board.filter(c=>c!==null);
+  if(h.length)q.set('h',h.map(cs).join(''));if(b.length)q.set('b',b.map(cs).join(''));
+  q.set('n',st.N);q.set('pos',st.pos);if(st.raiserPos)q.set('r',st.raiserPos);
+  if(+$('pot').value>0)q.set('pot',$('pot').value);if(+$('bet').value>0)q.set('bet',$('bet').value);
+  return location.origin+location.pathname+'?'+q.toString()}
+$('shareBtn').onclick=async()=>{const u=linkFor();try{await navigator.clipboard.writeText(u);$('shareMsg').textContent='הלינק הועתק ✓'}catch(e){$('shareMsg').innerHTML='<span class="num" style="word-break:break-all">'+u+'</span>'}};
+
+function render(){drawTable();drawSlots();drawDeck();drawResult();drawEquity()}
+setMode('sit');render();
 </script>
 </body>
 </html>
