@@ -19,7 +19,8 @@
   <div class="lbl" style="margin-top:14px">קלפים על הלוח <span class="mut">(לא חובה – פלופ / טרן / ריבר)</span></div>
   <div class="slots" id="boardSlots"></div>
   <div class="deck" id="deck"></div>
-  <div class="row" style="margin-top:10px"><button class="ghost" id="clearBtn">ניקוי</button><button class="ghost" id="randBtn">יד אקראית</button></div>
+  <div class="row" style="margin-top:10px"><button class="ghost" id="clearBtn">ניקוי</button><button class="ghost" id="randBtn">יד אקראית</button><button class="ghost" id="shareBtn">🔗 העתק לינק</button></div>
+  <div class="hint" id="shareMsg"></div>
 </section>
 
 <section class="panel">
@@ -68,6 +69,24 @@
 const H=window.HS;
 const st={hero:[null,null],board:[null,null,null,null,null],slot:['hero',0],N:8,pos:null,sit:'open',raiser:null};
 try{const s=JSON.parse(localStorage.getItem('hamara_solver')||'{}');if(s.N)st.N=s.N;if(s.pos)st.pos=s.pos}catch(e){}
+// --- link with a pre-filled hand: ?h=KcJc&b=6cTs5d5s&n=6&pos=CO&r=HJ&pot=100&bet=50
+const parseCards=str=>{const out=[];const t=(str||'').replace(/10/g,'T').replace(/\s|,/g,'');for(let i=0;i+1<t.length;i+=2){const r='23456789TJQKA'.indexOf(t[i].toUpperCase()),su='shdc'.indexOf(t[i+1].toLowerCase());if(r>=0&&su>=0)out.push(r*4+su)}return out};
+(function(){const q=new URLSearchParams(location.search);if(![...q.keys()].length)return;
+  const n=+q.get('n');if(n>=2&&n<=10)st.N=n;
+  const pos=(q.get('pos')||'').toUpperCase();if(HS.POS_NAMES[st.N].includes(pos))st.pos=pos;
+  const r=(q.get('r')||'').toUpperCase();if(r&&HS.POS_NAMES[st.N].includes(r)){st.sit='raise';st.raiser=r}
+  const seen=new Set();const h=parseCards(q.get('h')).filter(c=>!seen.has(c)&&seen.add(c)),b=parseCards(q.get('b')).filter(c=>!seen.has(c)&&seen.add(c));
+  st.hero=[h[0]??null,h[1]??null];b.slice(0,5).forEach((c,i)=>st.board[i]=c);
+  st.slot=h.length<2?['hero',h.length]:b.length<5?['board',b.length]:['board',4];
+  st.pendingPot=q.get('pot');st.pendingBet=q.get('bet');
+})();
+function linkFor(){const R='23456789TJQKA',S='shdc',cs=c=>R[c>>2]+S[c&3];const q=new URLSearchParams();
+  const h=st.hero.filter(c=>c!==null),b=st.board.filter(c=>c!==null);
+  if(h.length)q.set('h',h.map(cs).join(''));if(b.length)q.set('b',b.map(cs).join(''));
+  q.set('n',st.N);q.set('pos',st.pos);if(st.sit==='raise'&&st.raiser)q.set('r',st.raiser);
+  if(+document.getElementById('pot').value>0)q.set('pot',document.getElementById('pot').value);if(+document.getElementById('bet').value>0)q.set('bet',document.getElementById('bet').value);
+  return location.origin+location.pathname+'?'+q.toString()}
+
 const $=id=>document.getElementById(id);
 
 function save(){try{localStorage.setItem('hamara_solver',JSON.stringify({N:st.N,pos:st.pos}))}catch(e){}}
@@ -126,7 +145,8 @@ function drawResult(){
   if(a.act==='check')why=a.why;
   else if(!raiser)why=`מהמיקום הזה מעלים בערך <bdi dir="ltr">${a.pct}%</bdi> מהידיים. <bdi dir="ltr">${hand}</bdi> בטופ <bdi dir="ltr">${top}%</bdi> – ${a.act==='raise'?'בפנים':'מחוץ לטווח'}.`;
   else why=`${raiser} פותח בערך <bdi dir="ltr">${a.v.op}%</bdi> מהידיים. מולו: <bdi dir="ltr">3-bet</bdi> עם הטופ <bdi dir="ltr">${a.v.threebet.toFixed(0)}%</bdi>, השוואה עם עוד כ-<bdi dir="ltr">${a.v.call.toFixed(0)}%</bdi>. <bdi dir="ltr">${hand}</bdi> בטופ <bdi dir="ltr">${top}%</bdi>.`;
-  $('result').innerHTML=`<div class="panel res" style="border-color:${ACT[a.act][1]}">
+  const pre=st.board.some(c=>c!==null)?`<div class="hint" style="margin:0 0 6px;color:var(--gold)">ההמלצה הזו היא להחלטה לפני הפלופ. אחרי הפלופ – תסתכל על סיכויי הזכייה למטה.</div>`:'';
+  $('result').innerHTML=`<div class="panel res" style="border-color:${ACT[a.act][1]}">${pre}
     <div class="resHand">${CARD.html(st.hero[0])}${CARD.html(st.hero[1])}<span class="hn num">${hand}</span></div>
     <div class="resAct" style="color:${ACT[a.act][1]}"><bdi dir="ltr">${a.label}</bdi></div>${a.size?`<div class="hint" style="margin:2px 0 0;color:var(--txt)">${a.size}</div>`:''}
     <div class="hint" style="margin:6px 0 0">${why}</div>
@@ -170,6 +190,9 @@ function drawPot(){
 $('pot').oninput=$('bet').oninput=drawPot;
 $('clearBtn').onclick=()=>{st.hero=[null,null];st.board=[null,null,null,null,null];st.slot=['hero',0];render()};
 $('randBtn').onclick=()=>{const u=new Set(st.board.filter(c=>c!==null));const d=[...Array(52).keys()].filter(c=>!u.has(c));const a=d.splice(Math.random()*d.length|0,1)[0],b=d[Math.random()*d.length|0];st.hero=[a,b];st.slot=['board',0];render()};
+if(st.pendingPot)$('pot').value=st.pendingPot;if(st.pendingBet)$('bet').value=st.pendingBet;
+$('shareBtn').onclick=async()=>{const u=linkFor();try{await navigator.clipboard.writeText(u);$('shareMsg').textContent='הלינק הועתק ✓'}catch(e){$('shareMsg').innerHTML='<span class="num" style="word-break:break-all">'+u+'</span>'}
+  try{history.replaceState(null,'',u)}catch(e){}};
 function render(){drawSlots();drawDeck();drawTable();drawResult();drawEquity()}
 render();
 </script>
