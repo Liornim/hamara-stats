@@ -25,7 +25,7 @@ h1{font-size:26px}
 .seat.actor{box-shadow:0 0 0 4px #fff,0 0 18px 4px rgba(255,255,255,.5)}
 .bet{position:absolute;transform:translate(-50%,-50%);background:#0d0f12;color:#ffd75e;border:1px solid #5a4a14;border-radius:999px;padding:1px 7px;font:500 11px "JetBrains Mono",monospace;pointer-events:none;white-space:nowrap}
 .dbtn{position:absolute;width:20px;height:20px;border-radius:50%;background:#fff;color:#111;font:800 11px Heebo,sans-serif;display:flex;align-items:center;justify-content:center;transform:translate(-50%,-50%);box-shadow:0 0 0 2px #0d0f12;pointer-events:none}
-.act{position:sticky;bottom:0;z-index:5;background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:12px;margin-bottom:12px;box-shadow:0 -8px 24px rgba(0,0,0,.45)}
+.act{position:sticky;top:0;z-index:5;background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:12px;margin-bottom:12px;box-shadow:0 8px 24px rgba(0,0,0,.45)}
 .who{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;gap:8px}
 .who b{font-size:20px}
 .who .tc{color:var(--mut);font-size:13px}
@@ -63,6 +63,8 @@ details.panel summary{font-size:14px;color:var(--txt);cursor:pointer}
   <nav><a href="index.html">טבלה</a><a href="practice.html">תרגול</a></nav>
 </header>
 
+<section class="act" id="act"></section>
+
 <details class="panel" id="setup">
   <summary>⚙️ הגדרות שולחן – <span id="setupSum"></span></summary>
   <div class="hint" style="margin-top:6px">בחר מצב ולחץ על כיסא בשולחן.</div>
@@ -79,7 +81,6 @@ details.panel summary{font-size:14px;color:var(--txt);cursor:pointer}
   <div id="deckWrap"><div class="deck" id="deck"></div></div>
 </section>
 
-<section class="act" id="act"></section>
 
 <details class="panel"><summary>📜 מה קרה ביד</summary><div class="log" id="log" style="margin-top:8px"></div></details>
 <details class="panel" id="eqBox"><summary>📊 סיכויי זכייה – פירוט</summary><div id="eq" class="hint">בחר את הקלפים שלך.</div></details>
@@ -261,7 +262,7 @@ function drawAct(){
   const s=hd.actor,p=hd.pos[s],tc=toCall(s),isMe=s===cfg.me;
   let advH='';
   const needB=boardNeeded()-hd.board.filter(c=>c!==null).length;
-  if(needB>0&&hd.street>0)advH+=`<div class="need">הכנס את ${STREET[hd.street]==='פלופ'?'3 קלפי הפלופ':'קלף ה'+STREET[hd.street]} ↑</div>`;
+  if(needB>0&&hd.street>0)advH+=`<div class="need">הכנס את ${STREET[hd.street]==='פלופ'?'3 קלפי הפלופ':'קלף ה'+STREET[hd.street]} ↓</div>`;
   if(isMe){
     if(hd.hero.some(c=>c===null))advH+=`<div class="need">בחר את שני הקלפים שלך ↑ כדי לקבל המלצה</div>`;
     else{const a=advice();
