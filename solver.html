@@ -43,13 +43,15 @@
 </header>
 
 <section class="panel">
-  <div class="lbl">כמה משחקים ביד (כולל אותי)</div>
+  <div class="lbl">כמה משחקים בשולחן</div>
   <div class="pl" id="pl"></div>
   <div class="lbl" style="margin-top:12px">איפה אני יושב</div>
   <div class="pos" id="pos"></div>
 </section>
 
 <section class="panel">
+  <div class="lbl">נשארו ביד הזאת (כולל אותי)</div>
+  <div class="pl" id="left" style="margin-bottom:12px"></div>
   <div class="board" id="slots"></div>
 </section>
 
@@ -74,6 +76,8 @@ const H=window.HS,$=id=>document.getElementById(id);
 let players=4;try{const v=+localStorage.getItem('hamara_players');if(v>=2&&v<=9)players=v}catch(e){}
 let cards=[null,null,null,null,null,null,null]; // 0-1 me, 2-4 flop, 5 turn, 6 river
 let target=null;
+let left=null; // players still in this hand (null = everyone)
+const inHand=()=>Math.min(left??players,players);
 let myPos=null;try{myPos=localStorage.getItem('hamara_pos')||null}catch(e){}
 const SHORT={UTG:'ראשון','UTG+1':'שני','UTG+2':'שלישי',MP:'אמצע',LJ:'אמצע',HJ:'2 לפני דילר',CO:'לפני הדילר',BTN:'דילר',SB:'סמול',BB:'ביג'};
 function drawPos(){
@@ -82,6 +86,11 @@ function drawPos(){
   $('pos').querySelectorAll('button').forEach(b=>b.onclick=()=>{myPos=b.dataset.p||null;try{localStorage.setItem('hamara_pos',myPos||'')}catch(e){};render()});
 }
 
+function drawLeft(){
+  const L=inHand();
+  $('left').innerHTML=[2,3,4,5,6,7,8,9].map(n=>`<button class="${n===L?'on':''}" data-n="${n}" ${n>players?'disabled style="opacity:.25"':''}>${n}</button>`).join('');
+  $('left').querySelectorAll('button').forEach(b=>b.onclick=()=>{const n=+b.dataset.n;if(n>players)return;left=n===players?null:n;render()});
+}
 function drawPlayers(){
   $('pl').innerHTML=[2,3,4,5,6,7,8,9].map(n=>`<button class="${n===players?'on':''}" data-n="${n}">${n}</button>`).join('');
   $('pl').querySelectorAll('button').forEach(b=>b.onclick=()=>{players=+b.dataset.n;try{localStorage.setItem('hamara_players',players)}catch(e){};render()});
@@ -118,10 +127,10 @@ function drawVerdict(){
   if(hero.some(c=>c===null)){$('verdict').style.borderColor='#3a4150';$('verdict').innerHTML=`<div class="v" style="color:var(--mut);font-size:22px">בחר את 2 הקלפים שלך ↑</div>`;return}
   const contiguous=cards.slice(2,2+board.length).every(c=>c!==null);
   if(!contiguous||board.length===1||board.length===2){$('verdict').style.borderColor='#3a4150';$('verdict').innerHTML=`<div class="v" style="color:var(--mut);font-size:22px">${board.length<3?`עוד ${3-board.length} קלפים לפלופ ↑`:'השלם את הלוח ↑'}</div>`;return}
-  const opps=players-1,t=++tok;
+  const opps=inHand()-1,t=++tok;
   $('verdict').innerHTML=`<div class="v" style="color:var(--mut);font-size:22px">מחשב…</div>`;
   setTimeout(()=>{if(t!==tok)return;
-    const r=H.equity(hero,board,opps,board.length?15000:12000),eq=r.eq,fair=1/players;
+    const r=H.equity(hero,board,opps,board.length?15000:12000),eq=r.eq,fair=1/(opps+1);
     const hand=H.cardsToHand(hero[0],hero[1]);
     let v,c,sub;
     if(!board.length&&myPos){
@@ -146,15 +155,15 @@ function drawVerdict(){
     $('verdict').style.borderColor=c;
     $('verdict').innerHTML=`<div class="v" style="color:${c}">${v}</div><div class="sub">${sub}</div>
       <div class="stats"><div><div class="bign">${(eq*100).toFixed(0)}%</div><small>סיכוי לנצח מול ${opps} ${opps>1?'יריבים':'יריב'}</small></div>
-      <div><div class="bign" style="font-size:22px;color:var(--mut)">${(fair*100).toFixed(0)}%</div><small>הממוצע בשולחן</small></div></div>
+      <div><div class="bign" style="font-size:22px;color:var(--mut)">${(fair*100).toFixed(0)}%</div><small>הממוצע ביד</small></div></div>
       ${made?`<div class="sub" style="margin-top:10px">יש לך: <b>${made}</b></div>`:''}`;
   },10);
 }
-$('newBtn').onclick=()=>{cards=[null,null,null,null,null,null,null];target=null;if(myPos){const P=H.POS_NAMES[players];const i=P.indexOf(myPos);myPos=P[(i-1+P.length)%P.length];try{localStorage.setItem('hamara_pos',myPos)}catch(e){}}render();window.scrollTo({top:0,behavior:'smooth'})};
+$('newBtn').onclick=()=>{cards=[null,null,null,null,null,null,null];target=null;left=null;if(myPos){const P=H.POS_NAMES[players];const i=P.indexOf(myPos);myPos=P[(i-1+P.length)%P.length];try{localStorage.setItem('hamara_pos',myPos)}catch(e){}}render();window.scrollTo({top:0,behavior:'smooth'})};
 // links: ?h=KcJc&b=6cTs5d&n=4
 (function(){const q=new URLSearchParams(location.search);const P=s=>{const o=[];const t=(s||'').replace(/10/g,'T');for(let i=0;i+1<t.length;i+=2){const r='23456789TJQKA'.indexOf(t[i].toUpperCase()),u='shdc'.indexOf(t[i+1].toLowerCase());if(r>=0&&u>=0)o.push(r*4+u)}return o};
   const n=+q.get('n');if(n>=2&&n<=9)players=n;const h=P(q.get('h')),b=P(q.get('b'));h.slice(0,2).forEach((c,i)=>cards[i]=c);b.slice(0,5).forEach((c,i)=>cards[2+i]=c)})();
-function render(){drawPlayers();drawPos();drawSlots();drawDeck();drawVerdict()}
+function render(){drawPlayers();drawPos();drawLeft();drawSlots();drawDeck();drawVerdict()}
 render();
 </script>
 </body>
