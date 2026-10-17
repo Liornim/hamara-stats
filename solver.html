@@ -11,6 +11,10 @@
 .panel{margin-bottom:10px;padding:12px}
 .pl{display:grid;grid-template-columns:repeat(8,minmax(0,1fr));gap:5px;direction:ltr}
 .pl button{height:44px;border-radius:10px;border:1px solid var(--line);background:var(--panel2);color:var(--mut);font:800 18px Heebo,sans-serif;cursor:pointer}
+.pos{display:flex;gap:5px;flex-wrap:wrap}
+.pos button{min-width:58px;padding:6px 8px;border-radius:10px;border:1px solid var(--line);background:var(--panel2);color:var(--mut);font:800 14px Heebo,sans-serif;cursor:pointer;line-height:1.1}
+.pos button small{display:block;font:400 10px Heebo,sans-serif;margin-top:2px}
+.pos button.on{background:#2a3140;color:var(--txt);border-color:var(--gold)}
 .pl button.on{background:var(--gold);color:#1a1300;border-color:var(--gold)}
 .board{display:flex;gap:6px;direction:ltr;align-items:flex-end;justify-content:center;flex-wrap:nowrap}
 .grp{display:flex;flex-direction:column;align-items:center;gap:4px}
@@ -41,6 +45,8 @@
 <section class="panel">
   <div class="lbl">כמה משחקים ביד (כולל אותי)</div>
   <div class="pl" id="pl"></div>
+  <div class="lbl" style="margin-top:12px">איפה אני יושב</div>
+  <div class="pos" id="pos"></div>
 </section>
 
 <section class="panel">
@@ -52,11 +58,12 @@
 </section>
 
 <div class="verdict" id="verdict" style="border-color:#3a4150"></div>
-<button class="new" id="newBtn" style="margin:0 0 12px">🔄 יד חדשה</button>
+<button class="new" id="newBtn" style="margin:0 0 4px">🔄 יד חדשה</button>
+<div class="hint" style="text-align:center;margin:0 0 12px">ביד חדשה המיקום שלך זז אוטומטית (הדילר עובר הלאה)</div>
 
 <footer>
   סיכויי הזכייה הם חישוב אמיתי (סימולציה), מול יריבים עם <i>ידיים אקראיות</i>. מי שמהמר או משווה בדרך כלל מחזיק יד טובה יותר – אז מול הימור גדול, תהיה זהיר מהמספר.
-  לפני הפלופ ההמלצה לא יודעת איפה אתה יושב.
+  לפני הפלופ: אם בחרת מיקום – ההמלצה לפי טבלאות פתיחה, בהנחה שכולם קיפלו לפניך. אחרי הפלופ – תעדכן כמה נשארו ביד.
   <br><a href="recorder.html" style="color:var(--mut)">מצב מלא – רישום כל הפעולות בשולחן</a>
 </footer>
 
@@ -67,6 +74,13 @@ const H=window.HS,$=id=>document.getElementById(id);
 let players=4;try{const v=+localStorage.getItem('hamara_players');if(v>=2&&v<=9)players=v}catch(e){}
 let cards=[null,null,null,null,null,null,null]; // 0-1 me, 2-4 flop, 5 turn, 6 river
 let target=null;
+let myPos=null;try{myPos=localStorage.getItem('hamara_pos')||null}catch(e){}
+const SHORT={UTG:'ראשון','UTG+1':'שני','UTG+2':'שלישי',MP:'אמצע',LJ:'אמצע',HJ:'2 לפני דילר',CO:'לפני הדילר',BTN:'דילר',SB:'סמול',BB:'ביג'};
+function drawPos(){
+  const P=H.POS_NAMES[players];if(myPos&&!P.includes(myPos))myPos=null;
+  $('pos').innerHTML=`<button class="${!myPos?'on':''}" data-p="">?<small>לא משנה</small></button>`+P.map(p=>`<button class="${p===myPos?'on':''}" data-p="${p}">${p}<small>${SHORT[p]}</small></button>`).join('');
+  $('pos').querySelectorAll('button').forEach(b=>b.onclick=()=>{myPos=b.dataset.p||null;try{localStorage.setItem('hamara_pos',myPos||'')}catch(e){};render()});
+}
 
 function drawPlayers(){
   $('pl').innerHTML=[2,3,4,5,6,7,8,9].map(n=>`<button class="${n===players?'on':''}" data-n="${n}">${n}</button>`).join('');
@@ -101,16 +115,22 @@ function drawsTxt(hero,board){
 let tok=0;
 function drawVerdict(){
   const hero=cards.slice(0,2),board=cards.slice(2).filter(c=>c!==null);
-  if(hero.some(c=>c===null)){$('verdict').style.borderColor='#3a4150';$('verdict').innerHTML=`<div class="v" style="color:var(--mut);font-size:22px">בחר את 2 הקלפים שלך ↓</div>`;return}
+  if(hero.some(c=>c===null)){$('verdict').style.borderColor='#3a4150';$('verdict').innerHTML=`<div class="v" style="color:var(--mut);font-size:22px">בחר את 2 הקלפים שלך ↑</div>`;return}
   const contiguous=cards.slice(2,2+board.length).every(c=>c!==null);
-  if(!contiguous||board.length===1||board.length===2){$('verdict').style.borderColor='#3a4150';$('verdict').innerHTML=`<div class="v" style="color:var(--mut);font-size:22px">${board.length<3?`עוד ${3-board.length} קלפים לפלופ ↓`:'השלם את הלוח ↓'}</div>`;return}
+  if(!contiguous||board.length===1||board.length===2){$('verdict').style.borderColor='#3a4150';$('verdict').innerHTML=`<div class="v" style="color:var(--mut);font-size:22px">${board.length<3?`עוד ${3-board.length} קלפים לפלופ ↑`:'השלם את הלוח ↑'}</div>`;return}
   const opps=players-1,t=++tok;
   $('verdict').innerHTML=`<div class="v" style="color:var(--mut);font-size:22px">מחשב…</div>`;
   setTimeout(()=>{if(t!==tok)return;
     const r=H.equity(hero,board,opps,board.length?15000:12000),eq=r.eq,fair=1/players;
     const hand=H.cardsToHand(hero[0],hero[1]);
     let v,c,sub;
-    if(!board.length){
+    if(!board.length&&myPos){
+      const a=H.advise(hand,myPos,players,null),place=H.ORDER.indexOf(hand)+1;
+      if(a.act==='raise'){v='להעלות';c='#e8457a';sub=`מ-${myPos} עם ${players} שחקנים מעלים את הטופ <bdi dir="ltr">${a.pct}%</bdi> – ${hand} בפנים.`}
+      else if(a.act==='check'){v='צ׳ק';c='#6b7280';sub='אתה בביג – אם אף אחד לא העלה, אתה בפנים בחינם.'+(H.inTop(hand,12)?' עם יד כזו אפשר גם להעלות.':'')}
+      else{v='לקפל';c='#5b7fd6';sub=`מ-${myPos} עם ${players} שחקנים מעלים רק את הטופ <bdi dir="ltr">${a.pct}%</bdi> – ${hand} בחוץ.`}
+      sub+=` <span style="color:var(--mut)">(מקום ${place} מתוך 169 · בהנחה שכולם קיפלו לפניך)</span>`;
+    }else if(!board.length){
       const top=H.RANK[hand]*100,place=H.ORDER.indexOf(hand)+1;
       if(top<=8){v='חזק – להעלות';c='#e8457a';sub='יד מצוינת. להעלות, וגם להשוות להעלאה של אחרים.'}
       else if(top<=25){v='סביר – להיכנס';c='#2fbf71';sub='טובה כשאתה מאוחר בשולחן (ליד הדילר). אם יש העלאה גדולה לפניך – להיזהר.'}
@@ -130,11 +150,11 @@ function drawVerdict(){
       ${made?`<div class="sub" style="margin-top:10px">יש לך: <b>${made}</b></div>`:''}`;
   },10);
 }
-$('newBtn').onclick=()=>{cards=[null,null,null,null,null,null,null];target=null;render();window.scrollTo({top:0,behavior:'smooth'})};
+$('newBtn').onclick=()=>{cards=[null,null,null,null,null,null,null];target=null;if(myPos){const P=H.POS_NAMES[players];const i=P.indexOf(myPos);myPos=P[(i-1+P.length)%P.length];try{localStorage.setItem('hamara_pos',myPos)}catch(e){}}render();window.scrollTo({top:0,behavior:'smooth'})};
 // links: ?h=KcJc&b=6cTs5d&n=4
 (function(){const q=new URLSearchParams(location.search);const P=s=>{const o=[];const t=(s||'').replace(/10/g,'T');for(let i=0;i+1<t.length;i+=2){const r='23456789TJQKA'.indexOf(t[i].toUpperCase()),u='shdc'.indexOf(t[i+1].toLowerCase());if(r>=0&&u>=0)o.push(r*4+u)}return o};
   const n=+q.get('n');if(n>=2&&n<=9)players=n;const h=P(q.get('h')),b=P(q.get('b'));h.slice(0,2).forEach((c,i)=>cards[i]=c);b.slice(0,5).forEach((c,i)=>cards[2+i]=c)})();
-function render(){drawPlayers();drawSlots();drawDeck();drawVerdict()}
+function render(){drawPlayers();drawPos();drawSlots();drawDeck();drawVerdict()}
 render();
 </script>
 </body>
