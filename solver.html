@@ -51,7 +51,10 @@ h1{font-size:26px}
 .modes button.on{color:var(--txt);border-color:var(--gold);background:#2a3140}
 details.panel summary{font-size:14px;color:var(--txt);cursor:pointer}
 .blinds{display:flex;gap:10px;align-items:end;flex-wrap:wrap}
-.blinds input{width:80px}
+.blinds{gap:16px}
+.step{display:flex;align-items:center;gap:6px;direction:ltr}
+.step button{width:40px;height:40px;border-radius:10px;border:1px solid var(--line);background:var(--panel2);color:var(--txt);font:800 20px Heebo,sans-serif;cursor:pointer}
+.step input{width:72px;text-align:center;padding:8px 4px}
 .log{font-size:12.5px;color:var(--mut);line-height:1.7;direction:rtl}
 .log b{color:var(--txt);font-weight:500}
 .cardsBar{display:flex;align-items:center;justify-content:space-between;gap:8px}
@@ -74,7 +77,10 @@ details.panel summary{font-size:14px;color:var(--txt);cursor:pointer}
   <div class="modes" id="modes" style="grid-template-columns:repeat(2,minmax(0,1fr))">
     <button data-m="dealer">Ⓓ מי הדילר</button><button data-m="me">🙋 איפה אני</button>
   </div>
-  <div class="blinds"><label>סמול בליינד <input type="number" id="sbIn" inputmode="decimal"></label><label>ביג בליינד <input type="number" id="bbIn" inputmode="decimal"></label></div>
+  <div class="blinds">
+    <div><div class="lbl">סמול בליינד</div><div class="step"><button data-k="sb" data-d="-10">−</button><input type="number" id="sbIn" inputmode="decimal"><button data-k="sb" data-d="10">+</button></div></div>
+    <div><div class="lbl">ביג בליינד</div><div class="step"><button data-k="bb" data-d="-10">−</button><input type="number" id="bbIn" inputmode="decimal"><button data-k="bb" data-d="10">+</button></div></div>
+  </div>
 </details>
 
 <div class="tbl" id="tbl"></div>
@@ -100,9 +106,10 @@ const H=window.HS,$=id=>document.getElementById(id),SEATS=9;
 const STREET=['לפני הפלופ','פלופ','טרן','ריבר','סוף'];
 const fmt=v=>{const r=Math.round(v*100)/100;return r.toLocaleString('en-US')};
 // ---------- config (persisted) ----------
-let cfg={n:8,seats:[1,1,1,1,1,1,1,1,0],me:0,dealer:5,sb:1,bb:2};
+let cfg={n:8,seats:[1,1,1,1,1,1,1,1,0],me:0,dealer:5,sb:50,bb:100};
 try{const s=JSON.parse(localStorage.getItem('hamara_cfg')||'null');if(s&&s.seats&&s.seats.length===SEATS)cfg=Object.assign(cfg,s)}catch(e){}
 function applyN(n){cfg.n=n;cfg.seats=Array.from({length:SEATS},(_,i)=>i<n?1:0);if(cfg.me>=n)cfg.me=0;if(cfg.dealer>=n)cfg.dealer=n-1}
+if(cfg.sb===1&&cfg.bb===2){cfg.sb=50;cfg.bb=100}
 if(!cfg.n)cfg.n=cfg.seats.filter(Boolean).length;applyN(Math.min(9,Math.max(2,cfg.n)));
 const saveCfg=()=>{try{localStorage.setItem('hamara_cfg',JSON.stringify(cfg))}catch(e){}};
 let mode=null;
@@ -182,6 +189,7 @@ function setMode(m){mode=m;$('modes').querySelectorAll('button').forEach(b=>b.cl
 $('modes').querySelectorAll('button').forEach(b=>b.onclick=()=>setMode(b.dataset.m));
 $('setup').addEventListener('toggle',()=>{if(!$('setup').open)mode=null;else if(!mode)setMode('dealer')});
 $('sbIn').value=cfg.sb;$('bbIn').value=cfg.bb;
+document.querySelectorAll('.step button').forEach(b=>b.onclick=()=>{const k=b.dataset.k,d=+b.dataset.d;const inp=$(k+'In');inp.value=Math.max(10,(+inp.value||0)+d);inp.onchange()});
 $('sbIn').onchange=$('bbIn').onchange=()=>{const s=+$('sbIn').value,b=+$('bbIn').value;if(s>0&&b>0){cfg.sb=s;cfg.bb=b;saveCfg();const keep=hd.hero;newHand();hd.hero=keep;render()}};
 
 // ---------- cards ----------
