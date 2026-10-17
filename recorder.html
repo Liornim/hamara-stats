@@ -1,0 +1,385 @@
+<!doctype html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1">
+<title>Hamara Solver</title>
+<link href="https://fonts.googleapis.com/css2?family=Heebo:wght@400;500;800&family=JetBrains+Mono:wght@500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="poker.css">
+<style>
+body{padding-bottom:30px}
+.top{padding:16px 0 10px}
+h1{font-size:26px}
+.tbl{position:relative;width:100%;max-width:520px;margin:26px auto 30px;aspect-ratio:1.45/1}
+.felt{position:absolute;inset:6% 7%;border-radius:999px;background:radial-gradient(ellipse at center,#1f5a40 0%,#163f2d 70%);border:7px solid #2b2216;display:flex;align-items:center;justify-content:center;flex-direction:column}
+.potLbl{color:#cfe9da;font-size:12px}
+.potVal{color:#fff;font:800 26px "JetBrains Mono",monospace;line-height:1.1}
+.streetLbl{color:#9fd3b6;font-size:12px;margin-top:2px}
+.boardMini{display:flex;gap:3px;margin-top:6px;direction:ltr}
+.boardMini .card{width:26px;height:36px;border-radius:4px}.boardMini .card b{font-size:12px}.boardMini .card i{font-size:11px}
+.seat{position:absolute;transform:translate(-50%,-50%);width:54px;height:54px;border-radius:50%;border:2px solid #3a4150;background:var(--panel2);color:var(--txt);font:800 12px Heebo,sans-serif;display:flex;flex-direction:column;align-items:center;justify-content:center;cursor:pointer;padding:0;line-height:1.05;-webkit-tap-highlight-color:transparent}
+.seat small{font-weight:400;font-size:9.5px;color:var(--mut)}
+.seat.empty{background:transparent;border:2px dashed #353b47;color:var(--dim);font-weight:400;font-size:20px}
+.seat.me{background:var(--gold);border-color:var(--gold);color:#1a1300}.seat.me small{color:#5a4500}
+.seat.out{opacity:.28}
+.seat.actor{box-shadow:0 0 0 4px #fff,0 0 18px 4px rgba(255,255,255,.5)}
+.bet{position:absolute;transform:translate(-50%,-50%);background:#0d0f12;color:#ffd75e;border:1px solid #5a4a14;border-radius:999px;padding:1px 7px;font:500 11px "JetBrains Mono",monospace;pointer-events:none;white-space:nowrap}
+.dchip{position:absolute;top:-7px;right:-7px;width:22px;height:22px;border-radius:50%;background:#fff;color:#111;font:800 12px Heebo,sans-serif;display:flex;align-items:center;justify-content:center;box-shadow:0 0 0 2px #0d0f12}
+.dbtn{position:absolute;width:20px;height:20px;border-radius:50%;background:#fff;color:#111;font:800 11px Heebo,sans-serif;display:flex;align-items:center;justify-content:center;transform:translate(-50%,-50%);box-shadow:0 0 0 2px #0d0f12;pointer-events:none}
+.act{position:sticky;top:0;z-index:5;background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:12px;margin-bottom:12px;box-shadow:0 8px 24px rgba(0,0,0,.45)}
+.who{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;gap:8px}
+.who b{font-size:20px}
+.who .tc{color:var(--mut);font-size:13px}
+.btns{display:grid;grid-template-columns:1fr 1fr 1.3fr;gap:8px}
+.btns button{border:0;border-radius:12px;padding:15px 6px;font:800 17px Heebo,sans-serif;color:#fff;cursor:pointer;line-height:1.1}
+.bF{background:#5b7fd6}.bC{background:#2fbf71}.bR{background:#e8457a}
+.btns button small{display:block;font:500 12px "JetBrains Mono",monospace;opacity:.9;margin-top:3px}
+.sizes{display:flex;gap:5px;margin-top:8px;flex-wrap:wrap;align-items:center}
+.sizes button{background:var(--panel2);border:1px solid var(--line);color:var(--txt);border-radius:8px;padding:7px 9px;font:500 13px Heebo,sans-serif;cursor:pointer}
+.sizes input{width:80px;background:var(--panel2);border:1px solid var(--line);color:var(--txt);border-radius:8px;padding:7px;font:500 15px "JetBrains Mono",monospace;text-align:center}
+.tools{display:flex;gap:6px;margin-top:8px}
+.tools button{flex:1;background:transparent;border:1px solid var(--line);color:var(--mut);border-radius:10px;padding:8px;font:500 13px Heebo,sans-serif;cursor:pointer}
+.adv{border-radius:12px;padding:10px 12px;margin-bottom:10px;border:2px solid}
+.adv .a{font-size:24px;font-weight:800;line-height:1.1}
+.adv .w{font-size:12.5px;color:var(--mut);margin-top:4px;line-height:1.5}
+.need{background:#2a2410;border:1px solid #6b5716;color:#ffd75e;border-radius:12px;padding:10px 12px;margin-bottom:10px;font-size:14px;text-align:center}
+.done{text-align:center;padding:10px 0}
+.done b{font-size:22px}
+.next{width:100%;margin-top:10px;background:var(--gold);color:#1a1300;border:0;border-radius:12px;padding:14px;font:800 17px Heebo,sans-serif;cursor:pointer}
+.modes{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px;margin:10px 0}
+.modes button{background:var(--panel2);border:1px solid var(--line);color:var(--mut);border-radius:10px;padding:8px 4px;font:500 13px Heebo,sans-serif;cursor:pointer}
+.modes button.on{color:var(--txt);border-color:var(--gold);background:#2a3140}
+details.panel summary{font-size:14px;color:var(--txt);cursor:pointer}
+.blinds{display:flex;gap:10px;align-items:end;flex-wrap:wrap}
+.blinds{gap:16px}
+.step{display:flex;align-items:center;gap:6px;direction:ltr}
+.step button{width:40px;height:40px;border-radius:10px;border:1px solid var(--line);background:var(--panel2);color:var(--txt);font:800 20px Heebo,sans-serif;cursor:pointer}
+.step input{width:72px;text-align:center;padding:8px 4px}
+.log{font-size:12.5px;color:var(--mut);line-height:1.7;direction:rtl}
+.log b{color:var(--txt);font-weight:500}
+.cardsBar{display:flex;align-items:center;justify-content:space-between;gap:8px}
+.cardsBar .slots{justify-content:flex-start}
+</style>
+</head>
+<body>
+<header class="top">
+  <div><h1>Hamara <span>Solver</span></h1></div>
+  <nav><a href="solver.html">פשוט</a><a href="index.html">טבלה</a><a href="practice.html">תרגול</a></nav>
+</header>
+
+<section class="act" id="act"></section>
+
+<details class="panel" id="setup">
+  <summary>⚙️ הגדרות שולחן – <span id="setupSum"></span></summary>
+  <div class="hint" style="margin-top:6px">בחר מספר שחקנים, ואז "מי הדילר" ולחץ על הכיסא שלו.</div>
+  <div class="lbl" style="margin-top:10px">כמה שחקנים</div>
+  <div class="chips" id="nChips"></div>
+  <div class="modes" id="modes" style="grid-template-columns:repeat(2,minmax(0,1fr))">
+    <button data-m="dealer">Ⓓ מי הדילר</button><button data-m="me">🙋 איפה אני</button>
+  </div>
+  <div class="blinds">
+    <div><div class="lbl">סמול בליינד</div><div class="step"><button data-k="sb" data-d="-10">−</button><input type="number" id="sbIn" inputmode="decimal"><button data-k="sb" data-d="10">+</button></div></div>
+    <div><div class="lbl">ביג בליינד</div><div class="step"><button data-k="bb" data-d="-10">−</button><input type="number" id="bbIn" inputmode="decimal"><button data-k="bb" data-d="10">+</button></div></div>
+  </div>
+</details>
+
+<div class="tbl" id="tbl"></div>
+
+<section class="panel">
+  <div class="cardsBar"><div class="slots" id="heroSlots"></div><div class="slots" id="boardSlots"></div></div>
+  <div id="deckWrap"><div class="deck" id="deck"></div></div>
+</section>
+
+
+<details class="panel"><summary>📜 מה קרה ביד</summary><div class="log" id="log" style="margin-top:8px"></div></details>
+<details class="panel" id="eqBox"><summary>📊 סיכויי זכייה – פירוט</summary><div id="eq" class="hint">בחר את הקלפים שלך.</div></details>
+<details class="panel"><summary>🟥 טבלת טווח לפני הפלופ</summary>
+  <div class="lbl" id="gridTitle" style="margin-top:8px"></div><div class="freq" id="freq"></div><div class="gridWrap"><div class="grid" id="grid"></div></div>
+</details>
+
+<footer><b>חשוב לדעת:</b> זה לא סולבר GTO אמיתי. לפני הפלופ – טבלאות פתיחה סטנדרטיות (קירוב). אחרי הפלופ – ההמלצה מחושבת מסיכויי הזכייה מול יריבים עם ידיים אקראיות לעומת המחיר להשוות. מי שמהמר בדרך כלל מחזיק יותר מיד אקראית, אז מול הימור גדול תהיה זהיר מהמספר.</footer>
+
+<script src="engine.js"></script>
+<script src="cards.js"></script>
+<script>
+const H=window.HS,$=id=>document.getElementById(id),SEATS=9;
+const STREET=['לפני הפלופ','פלופ','טרן','ריבר','סוף'];
+const fmt=v=>{const r=Math.round(v*100)/100;return r.toLocaleString('en-US')};
+// ---------- config (persisted) ----------
+let cfg={n:8,seats:[1,1,1,1,1,1,1,1,0],me:0,dealer:5,sb:50,bb:100};
+try{const s=JSON.parse(localStorage.getItem('hamara_cfg')||'null');if(s&&s.seats&&s.seats.length===SEATS)cfg=Object.assign(cfg,s)}catch(e){}
+function applyN(n){cfg.n=n;cfg.seats=Array.from({length:SEATS},(_,i)=>i<n?1:0);if(cfg.me>=n)cfg.me=0;if(cfg.dealer>=n)cfg.dealer=n-1}
+if(cfg.sb===1&&cfg.bb===2){cfg.sb=50;cfg.bb=100}
+if(!cfg.n)cfg.n=cfg.seats.filter(Boolean).length;applyN(Math.min(9,Math.max(2,cfg.n)));
+const saveCfg=()=>{try{localStorage.setItem('hamara_cfg',JSON.stringify(cfg))}catch(e){}};
+let mode=null;
+// ---------- hand state ----------
+let hd,hist=[];
+const occ=()=>{const o=[];for(let k=0;k<SEATS;k++){const j=(cfg.dealer+k)%SEATS;if(cfg.seats[j])o.push(j)}return o}; // dealer first
+function positions(){
+  cfg.seats[cfg.me]=1;
+  if(!cfg.seats[cfg.dealer]){for(let k=1;k<=SEATS;k++){const j=(cfg.dealer+k)%SEATS;if(cfg.seats[j]){cfg.dealer=j;break}}}
+  const o=occ(),N=o.length,pos={};const P=H.POS_NAMES[N];
+  if(N===2){pos[o[0]]='SB';pos[o[1]]='BB'}else{pos[o[0]]='BTN';pos[o[1]]='SB';pos[o[2]]='BB';o.slice(3).forEach((s,i)=>pos[s]=P[i])}
+  const sbS=N===2?o[0]:o[1],bbS=N===2?o[1]:o[2];
+  return {N,pos,sbS,bbS,o};
+}
+function nextIn(from,set){for(let k=1;k<=SEATS;k++){const j=(from+k)%SEATS;if(set.includes(j))return j}return null}
+function newHand(){
+  const T=positions();
+  hd={street:0,N:T.N,pos:T.pos,active:[...T.o],com:{},pot:0,cur:cfg.bb,minR:cfg.bb,need:[...T.o],actor:null,
+      hero:hd?hd.hero.map(()=>null):[null,null],board:[null,null,null,null,null],raises:[],log:[],over:null,dealt:T.N};
+  hd.hero=[null,null];
+  hd.com[T.sbS]=cfg.sb;hd.com[T.bbS]=cfg.bb;
+  hd.log.push(`<b>${T.pos[T.sbS]}</b> סמול ${fmt(cfg.sb)} · <b>${T.pos[T.bbS]}</b> ביג ${fmt(cfg.bb)}`);
+  hd.actor=nextIn(T.bbS,hd.need);
+  hist=[];
+}
+const potTotal=()=>hd.pot+Object.values(hd.com).reduce((a,b)=>a+b,0);
+const toCall=s=>Math.max(0,hd.cur-(hd.com[s]||0));
+function snapshot(){hist.push(JSON.stringify(hd));if(hist.length>80)hist.shift()}
+function act(type,amt){
+  if(hd.over||hd.actor==null)return;snapshot();
+  const s=hd.actor,p=hd.pos[s],tc=toCall(s),nm=s===cfg.me?'אני':p;
+  if(type==='fold'){hd.active=hd.active.filter(x=>x!==s);hd.need=hd.need.filter(x=>x!==s);hd.log.push(`<b>${nm}</b> קיפל`)}
+  else if(type==='call'){hd.com[s]=hd.cur;hd.need=hd.need.filter(x=>x!==s);hd.log.push(tc?`<b>${nm}</b> השווה ${fmt(tc)}`:`<b>${nm}</b> צ׳ק`)}
+  else if(type==='raise'){amt=Math.max(amt,hd.cur+0.01);hd.minR=Math.max(hd.minR,amt-hd.cur);hd.cur=amt;hd.com[s]=amt;hd.need=hd.active.filter(x=>x!==s);
+    hd.raises.push({s,to:amt,street:hd.street});hd.log.push(`<b>${nm}</b> ${hd.raises.filter(r=>r.street===hd.street).length>1||hd.street>0&&tc>0?'העלה ל-':hd.street===0?'העלה ל-':'הימר '}${fmt(amt)}`)}
+  advance(s);render();
+}
+function advance(last){
+  if(hd.active.length===1){hd.pot=potTotal();hd.com={};hd.over={winner:hd.active[0]};hd.actor=null;hd.log.push(`<b>${hd.active[0]===cfg.me?'אני':hd.pos[hd.active[0]]}</b> לוקח את הקופה (${fmt(hd.pot)})`);return}
+  if(!hd.need.length){endStreet();return}
+  hd.actor=nextIn(last,hd.need);
+}
+function endStreet(){
+  hd.pot=potTotal();hd.com={};hd.cur=0;hd.minR=cfg.bb;hd.street++;
+  if(hd.street>=4){hd.over={showdown:true};hd.actor=null;hd.log.push(`שואודאון · קופה ${fmt(hd.pot)}`);return}
+  hd.log.push(`— ${STREET[hd.street]} · קופה ${fmt(hd.pot)} —`);
+  hd.need=[...hd.active];hd.actor=nextIn(cfg.dealer,hd.need);
+}
+function undo(){if(!hist.length)return;hd=JSON.parse(hist.pop());render()}
+function boardNeeded(){return [0,3,4,5][Math.min(hd.street,3)]}
+
+// ---------- table ----------
+function drawTable(){
+  const T=positions();
+  let h=`<div class="felt"><div class="potLbl">קופה</div><div class="potVal">${fmt(potTotal())}</div><div class="streetLbl">${STREET[hd.street]} · ${hd.quick?hd.left:hd.active.length} ביד</div><div class="boardMini">${hd.board.filter(c=>c!==null).map(CARD.html).join('')}</div></div>`;
+  for(let i=0;i<cfg.n;i++){
+    const a=(90+i*360/cfg.n)*Math.PI/180,x=50+44*Math.cos(a),y=50+47*Math.sin(a);
+    const on=cfg.seats[i],p=hd.pos[i]||T.pos[i]||'';
+    const inHand=hd.active.includes(i);
+    const cls=!on?'empty':[i===cfg.me?'me':'',on&&hd.pos[i]&&!inHand?'out':'',i===hd.actor?'actor':''].join(' ');
+    h+=`<button class="seat ${cls}" data-i="${i}" style="left:${x}%;top:${y}%">${on?`${p}<small>${i===cfg.me?'אני':''}</small>`:'+'}${i===cfg.dealer?'<span class="dchip">D</span>':''}</button>`;
+    if(hd.com[i]){const bx=50+30*Math.cos(a),by=50+28*Math.sin(a);h+=`<div class="bet" style="left:${bx}%;top:${by}%">${fmt(hd.com[i])}</div>`}
+  }
+  $('tbl').innerHTML=h;
+  $('tbl').querySelectorAll('.seat').forEach(b=>b.onclick=()=>tapSeat(+b.dataset.i));
+  $('setupSum').textContent=`${T.N} שחקנים · בליינדים ${fmt(cfg.sb)}/${fmt(cfg.bb)} · אני ${T.pos[cfg.me]}`;
+}
+function tapSeat(i){
+  if(!mode){$('setup').open=true;setMode('dealer');return}
+  if(mode==='me'){cfg.me=i;setMode('dealer')}
+  else if(mode==='dealer'){cfg.dealer=i}
+  saveCfg();const keep=hd.hero;newHand();hd.hero=keep;render();
+}
+function drawN(){$('nChips').innerHTML=[2,3,4,5,6,7,8,9].map(n=>`<button class="chip ${n===cfg.n?'on':''}" data-n="${n}">${n}</button>`).join('');
+  $('nChips').querySelectorAll('.chip').forEach(b=>b.onclick=()=>{applyN(+b.dataset.n);saveCfg();const keep=hd.hero;newHand();hd.hero=keep;render()})}
+function setMode(m){mode=m;$('modes').querySelectorAll('button').forEach(b=>b.classList.toggle('on',b.dataset.m===m))}
+$('modes').querySelectorAll('button').forEach(b=>b.onclick=()=>setMode(b.dataset.m));
+$('setup').addEventListener('toggle',()=>{if(!$('setup').open)mode=null;else if(!mode)setMode('dealer')});
+$('sbIn').value=cfg.sb;$('bbIn').value=cfg.bb;
+document.querySelectorAll('.step button').forEach(b=>b.onclick=()=>{const k=b.dataset.k,d=+b.dataset.d;const inp=$(k+'In');inp.value=Math.max(10,(+inp.value||0)+d);inp.onchange()});
+$('sbIn').onchange=$('bbIn').onchange=()=>{const s=+$('sbIn').value,b=+$('bbIn').value;if(s>0&&b>0){cfg.sb=s;cfg.bb=b;saveCfg();const keep=hd.hero;newHand();hd.hero=keep;render()}};
+
+// ---------- cards ----------
+let target=null;
+function used(){return new Set([...hd.hero,...hd.board].filter(c=>c!==null))}
+function autoTarget(){
+  const hi=hd.hero.findIndex(c=>c===null);if(hi>=0)return ['hero',hi];
+  const need=boardNeeded();for(let i=0;i<need;i++)if(hd.board[i]===null)return ['board',i];
+  return null;
+}
+function drawCards(){
+  const t=target||autoTarget();
+  const mk=(arr,kind,n)=>arr.slice(0,n).map((c,i)=>{const on=t&&t[0]===kind&&t[1]===i;return `<button class="slot ${on?'on':''} ${c===null?'empty':''}" data-k="${kind}" data-i="${i}">${c===null?(kind==='hero'?'?':['פלופ','','','טרן','ריבר'][i]):CARD.html(c)}</button>`}).join('');
+  $('heroSlots').innerHTML=mk(hd.hero,'hero',2);
+  const bn=Math.max(boardNeeded(),hd.board.filter(c=>c!==null).length);
+  $('boardSlots').innerHTML=bn?mk(hd.board,'board',bn):'';
+  document.querySelectorAll('.cardsBar .slot').forEach(b=>b.onclick=()=>{const k=b.dataset.k,i=+b.dataset.i;if(hd[k][i]!==null&&target&&target[0]===k&&target[1]===i){hd[k][i]=null}target=[k,i];render()});
+  const show=!!t;$('deckWrap').style.display=show?'block':'none';
+  if(!show)return;
+  const u=used();let h='';
+  for(let s=0;s<4;s++)for(let r=12;r>=0;r--){const c=r*4+s;h+=`<button class="dc ${CARD.suitCls(c)} ${u.has(c)?'used':''}" data-c="${c}">${CARD.rank(c)}<small>${CARD.suit(c)}</small></button>`}
+  $('deck').innerHTML=h;
+  $('deck').querySelectorAll('.dc').forEach(b=>b.onclick=()=>{const c=+b.dataset.c;if(used().has(c))return;const tt=target||autoTarget();if(!tt)return;hd[tt[0]][tt[1]]=c;target=null;render()});
+}
+
+// ---------- advice ----------
+const ACT={raise:['להעלות','#e8457a'],'3bet':['3-bet','#b0234f'],call:['להשוות','#2fbf71'],fold:['לקפל','#5b7fd6'],check:['צ׳ק','#6b7280'],bet:['להמר','#e8457a'],'4bet':['4-bet / אול-אין','#b0234f']};
+let eqCache={key:null,val:null},eqTok=0;
+function advice(){
+  const me=cfg.me;if(hd.actor!==me||hd.hero.some(c=>c===null))return null;
+  const hand=H.cardsToHand(hd.hero[0],hd.hero[1]),tc=toCall(me),pot=potTotal();
+  const odds=tc>0?tc/(pot+tc):0;
+  const oddsTxt=tc>0?`צריך להשוות ${fmt(tc)} לקופה של ${fmt(pot)} → צריך לנצח לפחות <bdi dir="ltr">${(odds*100).toFixed(0)}%</bdi>.`:'';
+  if(hd.street===0){
+    const rs=hd.raises.filter(r=>r.street===0);const pos=hd.pos[me];
+    let a,why;
+    if(rs.length===0){a=H.advise(hand,pos,hd.N,null);
+      const limp=hd.active.filter(s=>s!==me&&(hd.com[s]||0)>=cfg.bb&&hd.pos[s]!=='BB').length;
+      if(a.act==='check'&&H.inTop(hand,12)){a={act:'raise',label:'להעלות',size:`לגובה ${fmt(cfg.bb*(3+limp))}`}}
+      if(a.act==='raise')a.size=`להעלות ל-${fmt(cfg.bb*(2.5+limp))}${limp?` (${limp} נכנסו בלי להעלות)`:''}`;
+      why=a.act==='check'?'אף אחד לא העלה – אתה בפנים בחינם.':`מ-${pos} עם ${hd.N} שחקנים מעלים בערך <bdi dir="ltr">${a.pct}%</bdi> מהידיים. <bdi dir="ltr">${hand}</bdi> בטופ <bdi dir="ltr">${(H.RANK[hand]*100).toFixed(1)}%</bdi>.`;
+      if(a.act==='fold'&&tc===0)a={act:'check',label:'צ׳ק'};
+    }else if(rs.length===1){const rp=hd.pos[rs[0].s];a=H.advise(hand,pos,hd.N,rp);
+      if(a.act==='3bet')a.size=`להעלות ל-${fmt(rs[0].to*3)}`;
+      why=`${rp} העלה. מולו: <bdi dir="ltr">3-bet</bdi> עם הטופ <bdi dir="ltr">${a.v.threebet.toFixed(0)}%</bdi>, השוואה עד <bdi dir="ltr">${(a.v.threebet+a.v.call).toFixed(0)}%</bdi>. <bdi dir="ltr">${hand}</bdi> בטופ <bdi dir="ltr">${(H.RANK[hand]*100).toFixed(1)}%</bdi>.`}
+    else{a=H.inTop(hand,2.6)?{act:'4bet',label:'4-bet / אול-אין'}:H.inTop(hand,4.5)?{act:'call',label:'להשוות'}:{act:'fold',label:'לקפל'};
+      why=`היו ${rs.length} העלאות – ממשיכים רק עם ידיים מאוד חזקות (QQ+, AK).`}
+    return {act:a.act,label:a.label,size:a.size,why:why+(oddsTxt&&rs.length?'<br>'+oddsTxt:'')};
+  }
+  // postflop: equity vs opponents still in the hand
+  const opps=hd.active.length-1,board=hd.board.filter(c=>c!==null);
+  if(board.length<boardNeeded())return {wait:true};
+  const key=[...hd.hero,...board,opps].join(',');
+  if(eqCache.key!==key){eqCache={key,val:null};const tok=++eqTok;setTimeout(()=>{if(tok!==eqTok)return;eqCache.val=H.equity(hd.hero,board,opps,12000);render()},0);return {calc:true}}
+  const eq=eqCache.val.eq,fair=1/(opps+1);
+  let a;
+  if(tc===0){a=eq>Math.max(0.5,fair*1.7)?{act:'bet',label:'להמר',size:`בערך ${fmt(Math.round(pot*0.66*10)/10)} (⅔ קופה)`}:{act:'check',label:'צ׳ק'}}
+  else if(eq>Math.max(0.6,odds+0.25))a={act:'raise',label:'להעלות',size:`ל-${fmt(Math.round((hd.cur*2.5+0)*10)/10)} בערך`};
+  else if(eq>odds)a={act:'call',label:'להשוות'};
+  else a={act:'fold',label:'לקפל'};
+  const made=H.CAT[Math.floor(H.eval7(hd.hero.concat(board))/1e6)];
+  return {act:a.act,label:a.label,size:a.size,why:`יש לך: <b style="color:var(--txt)">${made}</b>. סיכוי לנצח מול ${opps} ${opps>1?'יריבים':'יריב'}: <bdi dir="ltr">${(eq*100).toFixed(0)}%</bdi>.${oddsTxt?'<br>'+oddsTxt:''}`};
+}
+
+// ---------- action panel ----------
+let raiseAmt=null;
+function sizeChips(){return [100,200,300,400,500].filter(v=>v>hd.cur).map(v=>[String(v),v])}
+const oppsN=()=>Math.max(1,(hd.quick?hd.left:hd.active.length)-1);
+function jump(){
+  snapshot();
+  if(!hd.quick){hd.quick=true;hd.left=hd.raises.length||hd.street>0?Math.max(2,hd.active.length):Math.min(3,hd.active.length)}
+  hd.pot=potTotal();hd.com={};hd.cur=0;hd.actor=null;hd.over=null;
+  hd.street=Math.min(3,hd.street+1);
+  hd.log.push(`— קפיצה ל${STREET[hd.street]} · ${hd.left} ביד —`);
+  target=null;render();
+}
+function drawsTxt(hero,board){
+  if(board.length>=5)return '';const all=hero.concat(board),out=[];
+  const sc=[0,0,0,0];all.forEach(c=>sc[c&3]++);const fs=sc.findIndex(x=>x===4);
+  if(fs>=0&&hero.some(c=>(c&3)===fs))out.push('דרואו לצבע');
+  const rs=new Set(all.map(c=>c>>2));if(rs.has(12))rs.add(-1);const hr=new Set(hero.map(c=>c>>2));if(hr.has(12))hr.add(-1);
+  let oe=false,gs=false;
+  for(let lo=-1;lo<=8;lo++){const w=[0,1,2,3,4].map(k=>lo+k),have=w.filter(r=>rs.has(r));if(have.length===5)return out.length?' + '+out.join(', '):'';
+    if(have.length===4&&w.some(r=>hr.has(r))){const miss=w.find(r=>!rs.has(r));if(miss===lo||miss===lo+4)oe=true;else gs=true}}
+  if(oe)out.push('דרואו פתוח לרצף');else if(gs)out.push('דרואו לרצף (באמצע)');
+  return out.length?' + '+out.join(', '):'';
+}
+function drawQuick(){
+  const board=hd.board.filter(c=>c!==null),need=boardNeeded()-board.length,max=hd.N;
+  let adv='';
+  if(hd.hero.some(c=>c===null))adv=`<div class="need">בחר את שני הקלפים שלך ↓</div>`;
+  else if(need>0)adv=`<div class="need">הכנס את ${hd.street===1?'3 קלפי הפלופ':'קלף ה'+STREET[hd.street]} ↓</div>`;
+  else{
+    const opps=oppsN(),key=['q',...hd.hero,...board,opps].join(',');
+    if(eqCache.key!==key){eqCache={key,val:null};const tok=++eqTok;setTimeout(()=>{if(tok!==eqTok)return;eqCache.val=H.equity(hd.hero,board,opps,12000);render()},0);adv=`<div class="adv" style="border-color:#3a4150"><div class="w">מחשב סיכויים…</div></div>`}
+    else{
+      const eq=eqCache.val.eq,fair=1/(opps+1),pot=hd.pot;
+      const made=H.CAT[Math.floor(H.eval7(hd.hero.concat(board))/1e6)]+drawsTxt(hd.hero,board);
+      const maxCall=eq>=0.5?null:Math.min(pot,Math.floor(eq*pot/(1-2*eq)/10)*10); // capped at pot: real bettors hold more than random hands
+      let a;
+      if(eq>=Math.max(0.5,fair*1.6))a={c:'#e8457a',t:'חזק – להמר',s:`הימור של בערך ${fmt(Math.round(pot*0.66/10)*10)} (⅔ קופה). אם מהמרים עליך – להעלות.`};
+      else if(eq>=fair)a={c:'#2fbf71',t:'בינוני – צ׳ק / להשוות',s:maxCall!=null&&pot>0?`אם מהמרים עליך – להשוות עד בערך ${fmt(maxCall)}. מעל זה – לקפל.`:'אם מהמרים עליך – להשוות.'};
+      else a={c:'#5b7fd6',t:'חלש – צ׳ק / לקפל',s:maxCall!=null&&pot>0&&maxCall>0?`להשוות רק הימור קטן מ-${fmt(maxCall)}. אחרת לקפל.`:'אם מהמרים עליך – לקפל.'};
+      adv=`<div class="adv" style="border-color:${a.c}"><div class="a" style="color:${a.c}">${a.t}</div><div style="font-size:14px;margin-top:2px">${a.s}</div>
+        <div class="w">יש לך: <b style="color:var(--txt)">${made}</b> · סיכוי לנצח מול ${opps} ${opps>1?'יריבים':'יריב'}: <bdi dir="ltr">${(eq*100).toFixed(0)}%</bdi> (הממוצע: <bdi dir="ltr">${(fair*100).toFixed(0)}%</bdi>)</div></div>`;
+    }
+  }
+  const leftChips=Array.from({length:max-1},(_,i)=>i+2).map(n=>`<button class="chip ${n===hd.left?'on':''}" data-l="${n}">${n}</button>`).join('');
+  $('act').innerHTML=`${adv}
+    <div class="lbl">כמה נשארו ביד (כולל אותי)?</div><div class="chips" id="leftChips">${leftChips}</div>
+    <div class="row" style="margin-top:10px;align-items:end"><label>קופה <div class="step"><button data-d="-50">−</button><input type="number" id="qPot" inputmode="decimal" value="${hd.pot}"><button data-d="50">+</button></div></label></div>
+    <div class="tools">${hd.street<3?`<button id="jumpBtn">⏩ ${STREET[hd.street+1]}</button>`:''}<button id="undoBtn">↩︎ ביטול</button></div>
+    <button class="next" id="nextBtn">▶ יד הבאה – הדילר זז</button>`;
+  $('leftChips').querySelectorAll('.chip').forEach(b=>b.onclick=()=>{hd.left=+b.dataset.l;render()});
+  $('act').querySelectorAll('.step button').forEach(b=>b.onclick=()=>{hd.pot=Math.max(0,(+$('qPot').value||0)+(+b.dataset.d));render()});
+  $('qPot').onchange=()=>{hd.pot=Math.max(0,+$('qPot').value||0);render()};
+  if($('jumpBtn'))$('jumpBtn').onclick=jump;$('undoBtn').onclick=undo;$('nextBtn').onclick=nextHand;
+}
+function drawAct(){
+  if(hd.quick){drawQuick();return}
+  if(hd.over){
+    const w=hd.over.winner;
+    $('act').innerHTML=`<div class="done"><b>${w!=null?`${w===cfg.me?'אתה לקחת':hd.pos[w]+' לקח'} את הקופה – ${fmt(hd.pot)}`:`שואודאון – קופה ${fmt(hd.pot)}`}</b></div>
+      <button class="next" id="nextBtn">▶ יד הבאה – הדילר זז</button><div class="tools"><button id="undoBtn">↩︎ ביטול פעולה</button></div>`;
+    $('nextBtn').onclick=nextHand;$('undoBtn').onclick=undo;return;
+  }
+  const s=hd.actor,p=hd.pos[s],tc=toCall(s),isMe=s===cfg.me;
+  let advH='';
+  const needB=boardNeeded()-hd.board.filter(c=>c!==null).length;
+  if(needB>0&&hd.street>0)advH+=`<div class="need">הכנס את ${STREET[hd.street]==='פלופ'?'3 קלפי הפלופ':'קלף ה'+STREET[hd.street]} ↓</div>`;
+  if(isMe){
+    if(hd.hero.some(c=>c===null))advH+=`<div class="need">בחר את שני הקלפים שלך ↑ כדי לקבל המלצה</div>`;
+    else{const a=advice();
+      if(a&&a.calc)advH+=`<div class="adv" style="border-color:#3a4150"><div class="w">מחשב סיכויים…</div></div>`;
+      else if(a&&!a.wait)advH+=`<div class="adv" style="border-color:${ACT[a.act][1]}"><div class="a" style="color:${ACT[a.act][1]}"><bdi dir="ltr">${a.label}</bdi></div>${a.size?`<div style="font-size:14px;margin-top:2px">${a.size}</div>`:''}<div class="w">${a.why}</div></div>`;}
+  }
+  const chips=sizeChips();
+  const minTo=hd.cur+hd.minR;
+  if(raiseAmt==null||raiseAmt<=hd.cur)raiseAmt=chips.length?chips[0][1]:Math.round(hd.cur*2*100)/100;
+  const callLbl=tc>0?'השווה':'צ׳ק';
+  const raiseLbl=hd.cur>0?'העלה ל-':'המר';
+  $('act').innerHTML=`${advH}
+    <div class="who"><div><b>התור של: ${isMe?'אני 🙋':p}</b></div><div class="tc">קופה ${fmt(potTotal())}${tc?` · להשוות ${fmt(tc)}`:''}</div></div>
+    <div class="btns">
+      <button class="bF" id="bFold">קיפל</button>
+      <button class="bC" id="bCall">${callLbl}${tc?`<small>${fmt(tc)}</small>`:''}</button>
+      <button class="bR" id="bRaise">${raiseLbl}<small id="rLbl">${fmt(raiseAmt)}</small></button>
+    </div>
+    <div class="sizes">${chips.map(([l,v])=>`<button data-v="${Math.round(v*100)/100}">${l}</button>`).join('')}<input type="number" id="rIn" inputmode="decimal" value="${raiseAmt}"></div>
+    <div class="tools"><button id="undoBtn" ${hist.length?'':'disabled'}>↩︎ ביטול</button><button id="jumpBtn">⏩ ${hd.street===0?'קפוץ לפלופ':'קפוץ ל'+STREET[Math.min(hd.street+1,3)]}</button><button id="skipBtn">⏭ יד הבאה</button></div>`;
+  $('bFold').onclick=()=>{raiseAmt=null;act('fold')};
+  $('bCall').onclick=()=>{raiseAmt=null;act('call')};
+  $('bRaise').onclick=()=>{const v=+$('rIn').value;if(!(v>hd.cur))return;raiseAmt=null;act('raise',v)};
+  $('act').querySelectorAll('.sizes button').forEach(b=>b.onclick=()=>{raiseAmt=+b.dataset.v;$('rIn').value=raiseAmt;$('rLbl').textContent=fmt(raiseAmt)});
+  $('rIn').oninput=()=>{raiseAmt=+$('rIn').value;$('rLbl').textContent=fmt(raiseAmt||0)};
+  $('undoBtn').onclick=undo;$('skipBtn').onclick=nextHand;$('jumpBtn').onclick=jump;
+}
+function nextHand(){
+  const o=occ();cfg.dealer=o[1]!==undefined?o[1]:cfg.dealer;saveCfg();newHand();target=null;raiseAmt=null;render();window.scrollTo({top:0,behavior:'smooth'});
+}
+
+// ---------- extras: log, equity detail, grid ----------
+function drawExtras(){
+  $('log').innerHTML=hd.log.map(l=>`<div>${l}</div>`).join('');
+  const hand=hd.hero.every(c=>c!==null)?H.cardsToHand(hd.hero[0],hd.hero[1]):null;
+  const rs=hd.raises.filter(r=>r.street===0);const rp=rs.length===1&&rs[0].s!==cfg.me?hd.pos[rs[0].s]:null;
+  const pos=hd.pos[cfg.me],grid=H.rangeGrid(pos,hd.N,rp);
+  const tot={};H.ALL.forEach(n=>{tot[grid[n]]=(tot[grid[n]]||0)+H.combos(n)});
+  const ord=['raise','3bet','call','check','fold'];
+  $('freq').innerHTML=Object.keys(tot).sort((a,b)=>ord.indexOf(a)-ord.indexOf(b)).map(a=>`<div style="flex:${tot[a]};background:${ACT[a][1]}"><b>${ACT[a][0]}</b><span class="num">${(tot[a]/13.26).toFixed(1)}%</span></div>`).join('');
+  $('gridTitle').textContent=rp?`${pos} מול העלאה של ${rp} · ${hd.N} שחקנים`:`${pos} כשכולם קיפלו · ${hd.N} שחקנים`;
+  let g='';for(let i=0;i<13;i++)for(let j=0;j<13;j++){const n=H.handName(i,j);g+=`<div class="cell ${n===hand?'me':''}" style="background:${ACT[grid[n]][1]}">${n}</div>`}
+  $('grid').innerHTML=g;
+  if($('eqBox').open)drawEq();
+}
+$('eqBox').addEventListener('toggle',()=>{if($('eqBox').open)drawEq()});
+let eqT=null;
+function drawEq(){
+  if(hd.hero.some(c=>c===null)){$('eq').textContent='בחר את הקלפים שלך.';return}
+  const board=hd.board.filter(c=>c!==null);if(![0,3,4,5].includes(board.length)){$('eq').textContent='בלוח צריך 3, 4 או 5 קלפים.';return}
+  const opps=oppsN();clearTimeout(eqT);
+  eqT=setTimeout(()=>{const r=H.equity(hd.hero,board,opps,20000);
+    const cats=r.cat.map((x,i)=>[H.CAT[i],x]).filter(x=>x[1]>=0.005).reverse();
+    $('eq').innerHTML=`<div class="eqRow"><div><div class="eqBig num">${(r.eq*100).toFixed(1)}%</div><div class="hint" style="margin:0">מול ${opps} ${opps>1?'יריבים':'יריב'} (ידיים אקראיות)</div></div></div>
+    <div class="lbl" style="margin-top:12px">${board.length===5?'היד שלך':'במה תסיים'}</div>
+    <div class="cats">${cats.map(([n,x])=>`<div><span>${n}</span><div class="track"><div style="width:${x*100}%"></div></div><span class="num">${(x*100).toFixed(0)}%</span></div>`).join('')}</div>`},0);
+}
+
+function render(){drawN();drawTable();drawCards();drawAct();drawExtras()}
+newHand();render();
+</script>
+</body>
+</html>
